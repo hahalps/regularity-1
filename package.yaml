@@ -23,6 +23,7 @@ ghc-options: -Wall
 library:
   dependencies:
   - base
+  - megaparsec
   source-dirs: library
 
 executables:
