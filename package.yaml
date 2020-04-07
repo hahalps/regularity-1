@@ -7,8 +7,8 @@ github: "mgree/regularity"
 license: MIT
 author: "Michael Greenberg"
 maintainer: "Michael Greenberg"
-# synopsis: A new Haskeleton package.
-# description: regularity is a new Haskeleton package.
+synopsis: Regular, degular, shmegular languages.
+description: regularity is a toolkit for working with regular languages, computing various operations on them.
 # category: Other
 
 extra-source-files:
