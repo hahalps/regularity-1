@@ -6,6 +6,8 @@ import qualified Test.Tasty
 -- writing tests. Its website has more info: <https://hspec.github.io>.
 import Test.Tasty.Hspec
 
+import Regularity hiding (main)
+
 main :: IO ()
 main = do
     test <- testSpec "regularity" spec
@@ -13,5 +15,8 @@ main = do
 
 spec :: Spec
 spec = parallel $ do
-    it "is trivially true" $ do
-        True `shouldBe` True
+    it "pretty printing 'abc'" $ do
+      show (Seq (Seq (Char 'a') (Char 'b')) (Char 'c')) `shouldBe` "abc"
+
+    it "pretty printing 'ab | c'" $ do
+      show (Alt (Seq (Char 'a') (Char 'b')) (Char 'c')) `shouldBe` "ab | c"
