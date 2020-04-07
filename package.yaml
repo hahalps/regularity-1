@@ -23,6 +23,7 @@ ghc-options: -Wall
 library:
   dependencies:
   - base
+  - text
   - megaparsec
   source-dirs: library
 
@@ -58,6 +59,8 @@ tests:
     dependencies:
     - base
     - regularity
+    - text
+    - megaparsec
     - tasty
     - tasty-hspec
     ghc-options:

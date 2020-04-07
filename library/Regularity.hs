@@ -1,9 +1,17 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- | The top-level Regularity module.
 module Regularity
-  ( main
+{-  ( main
   , Regex(..)
-  )
+  , Parser
+  ) -}
 where
+
+import Text.Megaparsec
+
+import Data.Text hiding (foldl, foldl1)
+import Data.Void (Void)
 
 -- | Default entry point.
 main :: IO ()
@@ -24,7 +32,7 @@ data Regex =
 instance Show Regex where
   show = showAlt
     where
-    showAlt (Alt re1 re2) = showAlt re1 ++ " | " ++ showAlt re2
+    showAlt (Alt re1 re2) = showAlt re1 ++ "|" ++ showAlt re2
     showAlt re            = showSeq re
 
     showSeq (Seq re1 re2) = showSeq re1 ++ showSeq re2
@@ -37,3 +45,34 @@ instance Show Regex where
     showAtom Epsilon      = "𝜖"
     showAtom Empty        = "∅"
     showAtom re           = "(" ++ showAlt re ++ ")"
+
+type Parser = Parsec Void Text
+
+specialChars :: String
+specialChars = "()|*𝜖∅\\"
+
+parse, parseAlt, parseSeq, parseStar, parseAtom :: Parser Regex
+parse = parseAlt
+
+-- TODO: use the the expression parser generator
+-- TODO: use lexing properly (spaces, etc.)
+parseAlt =
+      try (foldl1 Alt <$> sepBy1 parseSeq (single '|'))
+  <|> parseSeq
+parseSeq =
+      try (foldl1 Seq <$> some parseStar)
+  <|> parseStar
+parseStar =
+      try (Star <$> parseAtom <* single '*')
+  <|> parseAtom
+
+parseAtom =
+      try (Char <$> satisfy (not . (`elem` specialChars)))
+  <|> try (Char <$> (single '\\' *> satisfy (`elem` specialChars)))
+      -- TODO: support \n, \t, etc.
+  <|> try (pure Epsilon <* single '𝜖')
+  <|> try (pure Empty <* single '∅')
+  <|> parens parseAlt
+
+parens :: Parser a -> Parser a
+parens = between (single '(') (single ')')

@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- Tasty makes it easy to test your code. It is a test framework that can
 -- combine many different types of tests into one suite. See its website for
 -- help: <http://documentup.com/feuerbach/tasty>.
@@ -7,6 +9,8 @@ import qualified Test.Tasty
 import Test.Tasty.Hspec
 
 import Regularity hiding (main)
+
+import Text.Megaparsec (parseMaybe)
 
 main :: IO ()
 main = do
@@ -18,5 +22,9 @@ spec = parallel $ do
     it "pretty printing 'abc'" $ do
       show (Seq (Seq (Char 'a') (Char 'b')) (Char 'c')) `shouldBe` "abc"
 
-    it "pretty printing 'ab | c'" $ do
-      show (Alt (Seq (Char 'a') (Char 'b')) (Char 'c')) `shouldBe` "ab | c"
+    it "pretty printing 'ab|c'" $ do
+      show (Alt (Seq (Char 'a') (Char 'b')) (Char 'c')) `shouldBe` "ab|c"
+
+    it "parsing 'ab|c'" $ do
+      parseMaybe Regularity.parse "ab|c" `shouldBe`
+        Just (Alt (Seq (Char 'a') (Char 'b')) (Char 'c'))
