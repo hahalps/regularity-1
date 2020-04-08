@@ -32,10 +32,10 @@ data Regex =
 instance Show Regex where
   show = showAlt
     where
-    showAlt (Alt re1 re2) = showAlt re1 ++ "|" ++ showSeq re2
+    showAlt (Alt re1 re2) = showAlt re1 ++ "|" ++ showAlt re2
     showAlt re            = showSeq re
 
-    showSeq (Seq re1 re2) = showSeq re1 ++ showStar re2
+    showSeq (Seq re1 re2) = showSeq re1 ++ showSeq re2
     showSeq re            = showStar re
 
     showStar (Star re)    = showAtom re ++ "*"

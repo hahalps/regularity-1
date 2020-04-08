@@ -39,8 +39,8 @@ unitTestSpec = parallel $ do
 
 quickCheckTests :: [(String, Property)]
 quickCheckTests =
-  [ ("printing -> parsing round trip",
-      forAll regexes $ \r -> parseMaybe Regularity.parse (T.pack (show r)) === Just r)
+  [ ("printing -> parsing round trip up to left association",
+      forAll regexes $ \r -> parseMaybe Regularity.parse (T.pack (show r)) === Just (forceLeftAssociation r))
   ]
 
 
@@ -48,7 +48,22 @@ quickCheckTests =
 
 instance Arbitrary Regex where
   arbitrary = regexes
+  shrink = shrinkRegex
   -- TODO implement shrinking
+
+shrinkRegex :: Regex -> [Regex]
+shrinkRegex Empty         = []
+shrinkRegex Epsilon       = [Empty]
+shrinkRegex (Char _c)     = map Char ['a'..'z'] ++ [Epsilon, Empty]
+shrinkRegex (Seq re1 re2) = [Epsilon, Empty] ++
+                            [re1, re2] ++
+                            [Seq re1' re2' | re1' <- shrinkRegex re1, re2' <- shrinkRegex re2]
+shrinkRegex (Alt re1 re2) = [Epsilon, Empty] ++
+                            [re1, re2] ++
+                            [Alt re1' re2' | re1' <- shrinkRegex re1, re2' <- shrinkRegex re2]
+shrinkRegex (Star re)     = [Epsilon, Empty] ++
+                            [re] ++
+                            [Star re' | re' <- shrinkRegex re]
 
 regexes :: Gen Regex
 regexes = sized $ gen
@@ -63,3 +78,27 @@ regexes = sized $ gen
                       , Alt <$> gen (n `div` 2) <*> gen (n `div` 2)
                       , Star <$> gen (n `div` 2)
                       ]
+
+forceLeftAssociation :: Regex -> Regex
+forceLeftAssociation (Seq re1 re2) =
+  let lhs = collectSeqs re1
+      rhs = collectSeqs re2
+  in
+    foldl1 Seq $ map forceLeftAssociation (lhs ++ rhs)
+forceLeftAssociation (Alt re1 re2) =
+  let lhs = collectAlts re1
+      rhs = collectAlts re2
+  in
+    foldl1 Alt $ map forceLeftAssociation (lhs ++ rhs)
+forceLeftAssociation Empty     = Empty
+forceLeftAssociation Epsilon   = Epsilon
+forceLeftAssociation (Char c)  = Char c
+forceLeftAssociation (Star re) = Star $ forceLeftAssociation re
+
+collectSeqs :: Regex -> [Regex]
+collectSeqs (Seq re1 re2) = collectSeqs re1 ++ collectSeqs re2
+collectSeqs re            = [re]
+
+collectAlts :: Regex -> [Regex]
+collectAlts (Alt re1 re2) = collectAlts re1 ++ collectAlts re2
+collectAlts re            = [re]
