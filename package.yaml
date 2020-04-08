@@ -23,6 +23,7 @@ ghc-options: -Wall
 library:
   dependencies:
   - base
+  - containers
   - text
   - megaparsec
   source-dirs: library
@@ -68,3 +69,4 @@ tests:
     - -rtsopts
     - -threaded
     - -with-rtsopts=-N
+    - -Wno-orphans

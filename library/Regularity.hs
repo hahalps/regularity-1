@@ -8,10 +8,21 @@ module Regularity
   ) -}
 where
 
+{- next time:
+
+   - define automata
+   - convert regex to automata
+   - matching via automata
+   - SPEED TEST LET'S GO!!!11!!!!11111
+-}
+
 import Text.Megaparsec
 
-import Data.Text hiding (foldl, foldl1)
+import qualified Data.Text as T
 import Data.Void (Void)
+
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 -- | Default entry point.
 main :: IO ()
@@ -28,6 +39,37 @@ data Regex =
   | Alt Regex Regex
   | Star Regex
   deriving (Eq, Ord)
+
+-- | Regex matching
+
+matches :: Regex -> T.Text -> Bool
+matches re s = T.empty `elem` allMatches re s
+
+allMatches :: Regex -> T.Text -> Set T.Text
+allMatches Empty _ = Set.empty
+allMatches Epsilon s = if T.null s then Set.singleton T.empty else Set.empty
+allMatches (Char c) s =
+  case T.uncons s of
+    Nothing -> Set.empty
+    Just (c', s') -> if c == c' then Set.singleton s' else Set.empty
+allMatches (Seq re1 re2) s =
+  Set.foldr
+    (\s' m -> Set.union (allMatches re2 s') m)
+    Set.empty (allMatches re1 s)
+allMatches (Alt re1 re2) s =
+  allMatches re1 s `Set.union` allMatches re2 s
+allMatches (Star re) s =
+  let inners         = allMatches re s
+      nonEmptyInners = Set.filter (not . T.null) inners
+  in
+    Set.unions [ Set.singleton s
+               , inners
+               , Set.foldr
+                   (\s' m -> Set.union (allMatches (Star re) s') m)
+                   Set.empty nonEmptyInners
+               ]
+
+-- | Show instance
 
 instance Show Regex where
   show = showAlt
@@ -49,7 +91,9 @@ instance Show Regex where
     backslash c | c `elem` specialChars = "\\"
                 | otherwise             = ""
 
-type Parser = Parsec Void Text
+-- | Parsing
+
+type Parser = Parsec Void T.Text
 
 specialChars :: String
 specialChars = "()|*𝜖∅\\"

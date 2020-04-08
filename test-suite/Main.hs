@@ -37,19 +37,49 @@ unitTestSpec = parallel $ do
       parseMaybe Regularity.parse "ab|c" `shouldBe`
         Just (Alt (Seq (Char 'a') (Char 'b')) (Char 'c'))
 
+    let re_aStar = Star (Char 'a')
+    it "matching a* on a" $ do
+      matches re_aStar "a" `shouldBe` True
+    it "matching a* on aa" $ do
+      matches re_aStar "aa" `shouldBe` True
+    it "matching a* on aaa" $ do
+      matches re_aStar "aaa" `shouldBe` True
+    it "matching a* on aaaa" $ do
+      matches re_aStar "aaaa" `shouldBe` True
+
+    let re_epsAStar = Star (Alt Epsilon (Char 'a'))
+    it "matching (𝜖|a)* on a" $ do
+      matches re_epsAStar "a" `shouldBe` True
+    it "matching (𝜖|a)* on aa" $ do
+      matches re_epsAStar "aa" `shouldBe` True
+    it "matching (𝜖|a)* on aaa" $ do
+      matches re_epsAStar "aaa" `shouldBe` True
+    it "matching (𝜖|a)* on aaaa" $ do
+      matches re_epsAStar "aaaa" `shouldBe` True
+
 quickCheckTests :: [(String, Property)]
 quickCheckTests =
-  [ ("printing -> parsing round trip up to left association",
-      forAll regexes $ \r -> parseMaybe Regularity.parse (T.pack (show r)) === Just (forceLeftAssociation r))
+  [ ("printing -> parsing round trip up to left association"
+    , property $ \r -> parseMaybe Regularity.parse (T.pack (show r)) === Just (forceLeftAssociation r))
+  , ("star always matches empty string"
+    , property $ \r -> (Star r) `matches` T.empty)
+  , ("𝜖|... always matches empty string"
+    , property $ \r -> (Alt Epsilon r) `matches` T.empty)
+  , ("...|𝜖 always matches empty string"
+    , property $ \r -> (Alt r Epsilon) `matches` T.empty)
+  , ("∅ matches nothing"
+    , property $ \s -> not $ matches Empty (T.pack s))
+  , ("∅... matches nothing"
+    , property $ \r s -> not $ matches (Seq Empty r) (T.pack s))
+  , ("...∅ matches nothing"
+    , mapSize (`div` 50) $ \r s -> not $ matches (Seq r Empty) (T.pack s)) -- forcing small sizes so that we don't spend forever in a slow matching routine
   ]
-
 
 -- | Generators
 
 instance Arbitrary Regex where
   arbitrary = regexes
   shrink = shrinkRegex
-  -- TODO implement shrinking
 
 shrinkRegex :: Regex -> [Regex]
 shrinkRegex Empty         = []
