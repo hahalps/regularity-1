@@ -32,19 +32,22 @@ data Regex =
 instance Show Regex where
   show = showAlt
     where
-    showAlt (Alt re1 re2) = showAlt re1 ++ "|" ++ showAlt re2
+    showAlt (Alt re1 re2) = showAlt re1 ++ "|" ++ showSeq re2
     showAlt re            = showSeq re
 
-    showSeq (Seq re1 re2) = showSeq re1 ++ showSeq re2
+    showSeq (Seq re1 re2) = showSeq re1 ++ showStar re2
     showSeq re            = showStar re
 
     showStar (Star re)    = showAtom re ++ "*"
     showStar re           = showAtom re
 
-    showAtom (Char c)     = [c]
+    showAtom (Char c)     = backslash c ++ [c]
     showAtom Epsilon      = "𝜖"
     showAtom Empty        = "∅"
     showAtom re           = "(" ++ showAlt re ++ ")"
+
+    backslash c | c `elem` specialChars = "\\"
+                | otherwise             = ""
 
 type Parser = Parsec Void Text
 
@@ -56,12 +59,8 @@ parse = parseAlt
 
 -- TODO: use the the expression parser generator
 -- TODO: use lexing properly (spaces, etc.)
-parseAlt =
-      try (foldl1 Alt <$> sepBy1 parseSeq (single '|'))
-  <|> parseSeq
-parseSeq =
-      try (foldl1 Seq <$> some parseStar)
-  <|> parseStar
+parseAlt = foldl1 Alt <$> sepBy1 parseSeq (single '|')
+parseSeq = foldl1 Seq <$> some parseStar
 parseStar =
       try (Star <$> parseAtom <* single '*')
   <|> parseAtom
