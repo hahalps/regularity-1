@@ -13,6 +13,8 @@ import Regularity hiding (main)
 import qualified Regularity.Regex as Regex
 import Regularity.Regex (Regex(..), matches)
 
+import qualified Regularity.Automata as Automata
+
 import Text.Megaparsec (parseMaybe)
 
 import qualified Data.Text as T
@@ -24,7 +26,8 @@ main = do
     Test.Tasty.testGroup "regularity tests"
     [ Test.Tasty.testGroup "unit tests"
       unitTests
-    , testProperties "property tests" quickCheckTests
+    , testProperties "regex property tests" regexPropertyTests
+    , testProperties "automata property tests" automataPropertyTests
     ]
 
 unitTestSpec :: Spec
@@ -59,8 +62,8 @@ unitTestSpec = parallel $ do
     it "matching (𝜖|a)* on aaaa" $ do
       matches re_epsAStar "aaaa" `shouldBe` True
 
-quickCheckTests :: [(String, Property)]
-quickCheckTests =
+regexPropertyTests :: [(String, Property)]
+regexPropertyTests =
   [ ("printing -> parsing round trip up to left association"
     , property $ \r -> parseMaybe Regex.parse (T.pack (show r)) ===
                        Just (Regex.forceLeftAssociation r))
@@ -76,4 +79,10 @@ quickCheckTests =
     , property $ \r s -> not $ matches (Seq Empty r) (T.pack s))
   , ("...∅ matches nothing"
     , mapSize (`div` 50) $ \r s -> not $ matches (Seq r Empty) (T.pack s)) -- forcing small sizes so that we don't spend forever in a slow matching routine
+  ]
+
+automataPropertyTests :: [(String, Property)]
+automataPropertyTests =
+  [ ("empty automaton rejects all strings"
+    , property $ \s -> not (Automata.empty `Automata.accepts` T.pack s))
   ]
