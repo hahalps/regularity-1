@@ -11,10 +11,6 @@ import Regularity.Regex
 
 {- next time:
 
-Regularity
-Regularity.Regex
-Regularity.NFA
-
    - define automata
    - convert regex to automata
    - matching via automata
