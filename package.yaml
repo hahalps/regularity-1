@@ -26,6 +26,7 @@ library:
   - containers
   - text
   - megaparsec
+  - QuickCheck
   source-dirs: library
 
 executables:
@@ -69,4 +70,3 @@ tests:
     - -rtsopts
     - -threaded
     - -with-rtsopts=-N
-    - -Wno-orphans

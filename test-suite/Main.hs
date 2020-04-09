@@ -10,6 +10,8 @@ import Test.Tasty.Hspec
 import Test.Tasty.QuickCheck
 
 import Regularity hiding (main)
+import qualified Regularity.Regex as Regex
+import Regularity.Regex (Regex(..), matches)
 
 import Text.Megaparsec (parseMaybe)
 
@@ -34,7 +36,7 @@ unitTestSpec = parallel $ do
       show (Alt (Seq (Char 'a') (Char 'b')) (Char 'c')) `shouldBe` "ab|c"
 
     it "parsing 'ab|c'" $ do
-      parseMaybe Regularity.parse "ab|c" `shouldBe`
+      parseMaybe Regex.parse "ab|c" `shouldBe`
         Just (Alt (Seq (Char 'a') (Char 'b')) (Char 'c'))
 
     let re_aStar = Star (Char 'a')
@@ -60,7 +62,8 @@ unitTestSpec = parallel $ do
 quickCheckTests :: [(String, Property)]
 quickCheckTests =
   [ ("printing -> parsing round trip up to left association"
-    , property $ \r -> parseMaybe Regularity.parse (T.pack (show r)) === Just (forceLeftAssociation r))
+    , property $ \r -> parseMaybe Regex.parse (T.pack (show r)) ===
+                       Just (Regex.forceLeftAssociation r))
   , ("star always matches empty string"
     , property $ \r -> (Star r) `matches` T.empty)
   , ("𝜖|... always matches empty string"
@@ -74,61 +77,3 @@ quickCheckTests =
   , ("...∅ matches nothing"
     , mapSize (`div` 50) $ \r s -> not $ matches (Seq r Empty) (T.pack s)) -- forcing small sizes so that we don't spend forever in a slow matching routine
   ]
-
--- | Generators
-
-instance Arbitrary Regex where
-  arbitrary = regexes
-  shrink = shrinkRegex
-
-shrinkRegex :: Regex -> [Regex]
-shrinkRegex Empty         = []
-shrinkRegex Epsilon       = [Empty]
-shrinkRegex (Char _c)     = map Char ['a'..'z'] ++ [Epsilon, Empty]
-shrinkRegex (Seq re1 re2) = [Epsilon, Empty] ++
-                            [re1, re2] ++
-                            [Seq re1' re2' | re1' <- shrinkRegex re1, re2' <- shrinkRegex re2]
-shrinkRegex (Alt re1 re2) = [Epsilon, Empty] ++
-                            [re1, re2] ++
-                            [Alt re1' re2' | re1' <- shrinkRegex re1, re2' <- shrinkRegex re2]
-shrinkRegex (Star re)     = [Epsilon, Empty] ++
-                            [re] ++
-                            [Star re' | re' <- shrinkRegex re]
-
-regexes :: Gen Regex
-regexes = sized $ gen
-  where gen 0 = oneof [ pure Empty
-                      , pure Epsilon
-                      , Char <$> arbitrary
-                      ]
-        gen n = oneof [ pure Empty
-                      , pure Epsilon
-                      , Char <$> arbitrary
-                      , Seq <$> gen (n `div` 2) <*> gen (n `div` 2)
-                      , Alt <$> gen (n `div` 2) <*> gen (n `div` 2)
-                      , Star <$> gen (n `div` 2)
-                      ]
-
-forceLeftAssociation :: Regex -> Regex
-forceLeftAssociation (Seq re1 re2) =
-  let lhs = collectSeqs re1
-      rhs = collectSeqs re2
-  in
-    foldl1 Seq $ map forceLeftAssociation (lhs ++ rhs)
-forceLeftAssociation (Alt re1 re2) =
-  let lhs = collectAlts re1
-      rhs = collectAlts re2
-  in
-    foldl1 Alt $ map forceLeftAssociation (lhs ++ rhs)
-forceLeftAssociation Empty     = Empty
-forceLeftAssociation Epsilon   = Epsilon
-forceLeftAssociation (Char c)  = Char c
-forceLeftAssociation (Star re) = Star $ forceLeftAssociation re
-
-collectSeqs :: Regex -> [Regex]
-collectSeqs (Seq re1 re2) = collectSeqs re1 ++ collectSeqs re2
-collectSeqs re            = [re]
-
-collectAlts :: Regex -> [Regex]
-collectAlts (Alt re1 re2) = collectAlts re1 ++ collectAlts re2
-collectAlts re            = [re]
