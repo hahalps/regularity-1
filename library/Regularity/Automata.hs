@@ -62,15 +62,55 @@ empty :: Automaton
 empty =
   let id0 = StateId 0
       s0  = State { stateId = id0
-                  , transitions = Map.empty -- what happens??
+                  , transitions = Map.empty -- reject on no-match
                   , accepting = False
                   }
   in
   Automaton { states = Map.singleton id0 s0
             , startState = id0
             }
+
+epsilon :: Automaton
+epsilon =
+  let id0 = StateId 0
+      s0  = State { stateId = id0
+                  , transitions = Map.empty
+                  , accepting = True
+                  }
+  in
+    Automaton { states = Map.singleton id0 s0
+              , startState = id0
+              }
+
+char :: Char -> Automaton
+char c =
+  let id0 = StateId 0
+      id1 = StateId 1
+      s0  = State { stateId = id0
+                  , transitions = Map.singleton (Just c) (Set.singleton id1)
+                  , accepting = False
+                  }
+      s1  = State { stateId = id0
+                  , transitions = Map.empty -- reject on no-match
+                  , accepting = True
+                  }
+  in
+    Automaton { states = Map.fromList [(id0, s0), (id1, s1)]
+              , startState = id0
+              }
+
+seq :: Automaton -> Automaton -> Automaton
+seq a1 a2 = undefined
+
+alt :: Automaton -> Automaton -> Automaton
+alt a1 a2 = undefined
+
+star :: Automaton -> Automaton
+star a = undefined
   
 fromRegex :: Regex -> Automaton
-fromRegex Empty = empty  
+fromRegex Empty     = empty
+fromRegex Epsilon   = epsilon
+fromRegex (Char c ) = char c
 fromRegex re = error ("fromRegex: unimplemented on " ++ show re)
 

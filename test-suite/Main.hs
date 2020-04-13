@@ -85,4 +85,37 @@ automataPropertyTests :: [(String, Property)]
 automataPropertyTests =
   [ ("empty automaton rejects all strings"
     , property $ \s -> not (Automata.empty `Automata.accepts` T.pack s))
+  , ("epsilon automaton accepts only the empty string"
+    , property $ \rawS ->
+        let s = T.pack rawS
+            isEmpty = T.null s
+        in
+          classify isEmpty "empty" $
+          isEmpty === Automata.epsilon `Automata.accepts` s)
+  , ("char automaton accepts only its character"
+    , property $ \c rawS ->
+        let a = Automata.char c
+            s = T.pack rawS
+            
+            startsWithC = case T.uncons s of
+                            Nothing -> False
+                            Just (c',_) -> c == c'
+
+            accepting = a `Automata.accepts` s
+        in
+          classify startsWithC "already start with c" $
+          classify accepting "accepting" $
+          (startsWithC && T.length s == 1) === accepting)
+  , ("char automaton accepts only its character (forcing char on front)"
+    , property $ \c rawS ->
+        let a = Automata.char c
+            s = T.pack (c : rawS)
+
+            accepting = a `Automata.accepts` s
+        in
+          classify accepting "accepting" $
+          (T.length s == 1) === accepting)
+  , ("char automaton accepts strings matching exactly"
+    , property $ \c ->
+        Automata.char c `Automata.accepts` T.singleton c)
   ]
