@@ -118,4 +118,43 @@ automataPropertyTests =
   , ("char automaton accepts strings matching exactly"
     , property $ \c ->
         Automata.char c `Automata.accepts` T.singleton c)
+  , ("alt automaton accepts either character"
+    , property $ \c1 c2 ->
+        let a = Automata.alt (Automata.char c1) (Automata.char c2) in
+          conjoin [ a `Automata.accepts` T.singleton c1
+                  , a `Automata.accepts` T.singleton c2
+                  , not (a `Automata.accepts` T.empty)
+                  , not (a `Automata.accepts` T.pack [c1,c2])
+                  ])
+  , ("seq automaton accepts characters in order"
+    , property $ \c1 c2 ->
+        let a = Automata.seq (Automata.char c1) (Automata.char c2) in
+          conjoin [ a `Automata.accepts` T.pack [c1, c2]
+                  , not (a `Automata.accepts` T.empty)
+                  , not (a `Automata.accepts` T.pack [c1])
+                  , not (a `Automata.accepts` T.pack [c2])
+                  , c1 == c2 || not (a `Automata.accepts` T.pack [c1,c1])
+                  , c1 == c2 || not (a `Automata.accepts` T.pack [c2,c2])
+                  ])
+  , ("star automaton accepts empty string"
+    , property $ \c -> Automata.star (Automata.char c) `Automata.accepts` T.empty)
+
+  , ("star automaton accepts single char"
+    , property $ \c -> Automata.star (Automata.char c) `Automata.accepts` T.singleton c)
+
+  , ("star automaton accepts ten characters"
+    , property $ \c ->
+        Automata.star (Automata.char c) `Automata.accepts` T.replicate 10 (T.singleton c))
+
+  , ("star automaton doesn't accept weird suffixes"
+    , property $ \c ->
+        not (Automata.star (Automata.char c) `Automata.accepts` T.pack [c,c,c,c,c, 'b', 'c']))
+    
+  , ("shifting ids doesn't change acceptance"
+    , property $ \a rawS (Positive n)->
+        let s = T.pack rawS
+            accepting = a `Automata.accepts` s
+        in
+          classify accepting "accepting" $
+          accepting === (a `Automata.shiftAutomatonBy` n) `Automata.accepts` s)
   ]
