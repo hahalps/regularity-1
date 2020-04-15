@@ -149,6 +149,14 @@ automataPropertyTests =
   , ("star automaton doesn't accept weird suffixes"
     , property $ \c ->
         not (Automata.star (Automata.char c) `Automata.accepts` T.pack [c,c,c,c,c, 'b', 'c']))
+
+  , ("regexes and automata agree"
+    , mapSize (`div` 50) $ property $ \re rawS ->
+        let s = T.pack rawS
+            accepting = re `matches` s
+        in
+          classify accepting "accepting" $
+          accepting === (Automata.fromRegex re `Automata.accepts` s))
     
   , ("shifting ids doesn't change acceptance"
     , property $ \a rawS (Positive n)->
