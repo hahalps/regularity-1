@@ -48,6 +48,7 @@ benchmarks:
     dependencies:
     - base
     - regularity
+    - text
     - criterion
     ghc-options:
     - -rtsopts

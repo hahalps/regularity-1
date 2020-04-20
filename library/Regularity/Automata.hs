@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, BangPatterns #-}
 module Regularity.Automata
 where
 
@@ -6,8 +6,8 @@ import Regularity.Regex
 
 import Test.QuickCheck
 
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -41,10 +41,10 @@ instance Show StateId where
 -- epsilon transitions: Nothing is epsilon; Just c is a character
 
 data Automaton =
-  Automaton { states :: Set StateId
-            , delta :: Map StateId (Map (Maybe Char) (Set StateId))
-            , accepting :: Set StateId
-            , startState :: StateId
+  Automaton { states :: !(Set StateId)
+            , delta :: !(Map StateId (Map (Maybe Char) (Set StateId)))
+            , accepting :: !(Set StateId)
+            , startState :: !StateId
             }
 
 transitionsFor :: Automaton -> StateId -> Map (Maybe Char) (Set StateId)
@@ -96,19 +96,16 @@ maxStateId :: Automaton -> Int
 maxStateId a = getStateId $ maximum $ states a
 
 accepts :: Automaton -> T.Text -> Bool
-accepts a s = any (\si -> si `Set.member` accepting a) $ run a s
+accepts !a !s = any (\si -> si `Set.member` accepting a) $ run a s
 
 run :: Automaton -> T.Text -> Set StateId
-run a = runIn (startState a)
+run !a = runIn $ epsilonSteps a $ startState a
   where
-    runIn :: StateId -> T.Text -> Set StateId
-    runIn si s =
-      let currentStates = Set.insert si $ epsilonSteps a si
-      in case T.uncons s of
-           Nothing -> currentStates
-           Just (c, s') ->
-             let next = step a currentStates c in
-             Set.foldr (\si' sts -> Set.union (runIn si' s') sts) Set.empty next
+    runIn :: Set StateId -> T.Text -> Set StateId
+    runIn currentStates s =
+      case T.uncons s of
+        Nothing -> currentStates
+        Just (c, s') -> runIn (step a currentStates c) s'
 
 step :: Automaton -> Set StateId -> Char -> Set StateId
 step a currentStates c =
@@ -121,7 +118,7 @@ step a currentStates c =
 
 -- BUG: potential infinite loop?  
 epsilonSteps :: Automaton -> StateId -> Set StateId
-epsilonSteps a initial = dfs [initial] Set.empty
+epsilonSteps a initial = dfs [initial] $ Set.singleton initial
   where
     dfs :: [StateId] -> Set StateId -> Set StateId
     dfs []       seen = seen
@@ -163,7 +160,7 @@ char c =
               }
 
 seq :: Automaton -> Automaton -> Automaton
-seq a1 a2 =
+seq !a1 !a2 =
     let a2' = a2 `shiftAutomatonBy` (maxStateId a1 + 1)
         delta1' = Set.foldr
                     (\si delta' ->
@@ -179,7 +176,7 @@ seq a1 a2 =
                 }
 
 alt :: Automaton -> Automaton -> Automaton
-alt a1 a2 =
+alt !a1 !a2 =
   let a1' = a1 `shiftAutomatonBy` 1
       a2' = a2 `shiftAutomatonBy` (maxStateId a1' + 1)
       id0 = StateId 0
@@ -195,7 +192,7 @@ alt a1 a2 =
               }                                                        
 
 star :: Automaton -> Automaton
-star a =
+star !a =
   let
     delta' =  Set.foldr
                     (\si delta'' ->

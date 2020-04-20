@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, BangPatterns #-}
 
 -- | Regular expressions
 module Regularity.Regex
@@ -27,15 +27,15 @@ data Regex =
     Empty
   | Epsilon
   | Char Char
-  | Seq Regex Regex
-  | Alt Regex Regex
-  | Star Regex
+  | Seq !Regex !Regex
+  | Alt !Regex !Regex
+  | Star !Regex
   deriving (Eq, Ord)
 
 -- | Regex matching
 
 matches :: Regex -> T.Text -> Bool
-matches re s = T.empty `elem` allMatches re s
+matches !re !s = T.empty `elem` allMatches re s
 
 allMatches :: Regex -> T.Text -> Set T.Text
 allMatches Empty _ = Set.empty
@@ -44,13 +44,13 @@ allMatches (Char c) s =
   case T.uncons s of
     Nothing -> Set.empty
     Just (c', s') -> if c == c' then Set.singleton s' else Set.empty
-allMatches (Seq re1 re2) s =
+allMatches (Seq !re1 !re2) s =
   Set.foldr
     (\s' m -> Set.union (allMatches re2 s') m)
     Set.empty (allMatches re1 s)
-allMatches (Alt re1 re2) s =
+allMatches (Alt !re1 !re2) s =
   allMatches re1 s `Set.union` allMatches re2 s
-allMatches (Star re) s =
+allMatches (Star !re) s =
   let inners         = allMatches re s
       nonEmptyInners = Set.filter (not . T.null) inners
   in
