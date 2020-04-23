@@ -78,7 +78,17 @@ regexPropertyTests =
   , ("∅... matches nothing"
     , property $ \r s -> not $ matches (Seq Empty r) (T.pack s))
   , ("...∅ matches nothing"
-    , mapSize (`div` 50) $ \r s -> not $ matches (Seq r Empty) (T.pack s)) -- forcing small sizes so that we don't spend forever in a slow matching routine
+    , property $ \r s -> not $ matches (Seq r Empty) (T.pack s)) -- forcing small sizes so that we don't spend forever in a slow matching routine
+{-  , ("random regex sizes"
+    , property $ \r ->
+        forAll (textMatching r) $ \s ->
+        label ("for a regex of size " ++ show (size r) ++ " with " ++ show (starNesting r ) ++ " nested stars, found a string of length " ++ show (T.length s))
+        True
+    ) -}
+  , ("stringMatching correct"
+    , property $ \r -> forAll (textMatching r) $ \s -> property (r `matches` s)
+    )
+        
   ]
 
 automataPropertyTests :: [(String, Property)]
@@ -151,13 +161,20 @@ automataPropertyTests =
         not (Automata.star (Automata.char c) `Automata.accepts` T.pack [c,c,c,c,c, 'b', 'c']))
 
   , ("regexes and automata agree"
-    , mapSize (`div` 50) $ property $ \re rawS ->
+    , property $ \re rawS ->
         let s = T.pack rawS
             accepting = re `matches` s
         in
           classify accepting "accepting" $
+          classify (T.null s) "empty string" $
           accepting === (Automata.fromRegex re `Automata.accepts` s))
-    
+
+  , ("regexes and automata agree on accepting states"
+    , noShrinking $ property $ \re -> forAll (textMatching re) $ \s ->
+        classify (T.null s) "empty string" $
+        collect (show (starNesting re) ++ " nested stars") $
+        re `matches` s .&&. (Automata.fromRegex re `Automata.accepts` s))
+
   , ("shifting ids doesn't change acceptance"
     , property $ \a rawS (Positive n)->
         let s = T.pack rawS

@@ -6,8 +6,12 @@ module Regularity.Regex
   , Parser
   , matches
   , allMatches
+  , size
+  , starNesting
   , parse
   , forceLeftAssociation
+  , textMatching
+  , stringMatching
   )
 where
 
@@ -37,22 +41,24 @@ data Regex =
 matches :: Regex -> T.Text -> Bool
 matches !re !s = T.empty `elem` allMatches re s
 
+-- | Returns the set of strings that could be remaining after a match.
 allMatches :: Regex -> T.Text -> Set T.Text
 allMatches Empty _ = Set.empty
-allMatches Epsilon s = if T.null s then Set.singleton T.empty else Set.empty
+allMatches Epsilon s = Set.singleton s
 allMatches (Char c) s =
   case T.uncons s of
     Nothing -> Set.empty
     Just (c', s') -> if c == c' then Set.singleton s' else Set.empty
 allMatches (Seq !re1 !re2) s =
+  let remainder = allMatches re1 s in
   Set.foldr
     (\s' m -> Set.union (allMatches re2 s') m)
-    Set.empty (allMatches re1 s)
+    Set.empty remainder
 allMatches (Alt !re1 !re2) s =
   allMatches re1 s `Set.union` allMatches re2 s
 allMatches (Star !re) s =
   let inners         = allMatches re s
-      nonEmptyInners = Set.filter (not . T.null) inners
+      nonEmptyInners = Set.filter (not . (==s)) inners
   in
     Set.unions [ Set.singleton s
                , inners
@@ -60,6 +66,22 @@ allMatches (Star !re) s =
                    (\s' m -> Set.union (allMatches (Star re) s') m)
                    Set.empty nonEmptyInners
                ]
+
+size :: Regex -> Int
+size Empty         = 0
+size Epsilon       = 1
+size (Char _)      = 1
+size (Seq re1 re2) = size re1 + size re2 + 1
+size (Alt re1 re2) =  size re1 + size re2 + 1
+size (Star re)     = size re + 1
+
+starNesting :: Regex -> Int
+starNesting Empty         = 0
+starNesting Epsilon       = 0
+starNesting (Char _)      = 0
+starNesting (Seq re1 re2) = max (starNesting re1) (starNesting re2)
+starNesting (Alt re1 re2) = max (starNesting re1) (starNesting re2)
+starNesting (Star re)     = 1 + starNesting re
 
 -- | Show instance
 
@@ -143,8 +165,21 @@ regexes = sized $ gen
                       , Char <$> arbitrary
                       , Seq <$> gen (n `div` 2) <*> gen (n `div` 2)
                       , Alt <$> gen (n `div` 2) <*> gen (n `div` 2)
-                      , Star <$> gen (n `div` 2)
+                      , Star <$> gen (n `div` 10)
                       ]
+
+textMatching :: Regex -> Gen T.Text
+textMatching re = T.pack <$> stringMatching re
+
+stringMatching :: Regex -> Gen String
+stringMatching Empty         = discard
+stringMatching Epsilon       = pure ""
+stringMatching (Char c)      = pure [c]
+stringMatching (Seq re1 re2) = (++) <$> stringMatching re1 <*> stringMatching re2
+stringMatching (Alt re1 re2) = oneof [stringMatching re1, stringMatching re2]
+stringMatching (Star re)     = do
+  n <- choose (0,5)
+  concat <$> vectorOf n (scale (`div` n) $ stringMatching re)
 
 forceLeftAssociation :: Regex -> Regex
 forceLeftAssociation (Seq re1 re2) =

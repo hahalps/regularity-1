@@ -18,18 +18,12 @@ import qualified Data.Text as T
 
 {- PLAN
 
-   - *** SPEED TEST LET'S GO!!!11!!!!11111
-     + explicitly work with state sets in run
-     + make sure laziness isn't hurting us (strictness!)
-
    - epsilon elimination
      - determinize
 
    - use real intmaps rather than Map
 
-   - validity testing of automata
-
-   - better testing
+   - TODO report criterion bug (bad HTML output when there's a newline in the test name)
 -}
 
 newtype StateId = StateId { getStateId :: Int }
@@ -99,7 +93,7 @@ accepts :: Automaton -> T.Text -> Bool
 accepts !a !s = any (\si -> si `Set.member` accepting a) $ run a s
 
 run :: Automaton -> T.Text -> Set StateId
-run !a = runIn $ epsilonSteps a $ startState a
+run !a = runIn $ epsilonSteps a $ Set.singleton $ startState a
   where
     runIn :: Set StateId -> T.Text -> Set StateId
     runIn currentStates s =
@@ -114,11 +108,10 @@ step a currentStates c =
         Set.foldr (\si next -> Set.union (nextStatesFor si) next)
         Set.empty currentStates
   in
-    Set.foldr (\si acc -> Set.union (epsilonSteps a si) acc) nextStates nextStates
+    epsilonSteps a nextStates
 
--- BUG: potential infinite loop?  
-epsilonSteps :: Automaton -> StateId -> Set StateId
-epsilonSteps a initial = dfs [initial] $ Set.singleton initial
+epsilonSteps :: Automaton -> Set StateId -> Set StateId
+epsilonSteps a initial = dfs (Set.toList initial) initial
   where
     dfs :: [StateId] -> Set StateId -> Set StateId
     dfs []       seen = seen
