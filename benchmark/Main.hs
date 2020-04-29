@@ -6,7 +6,9 @@ import Criterion.Main
 
 import Regularity.Automata
 import Regularity.Automata.NFAe (NFAe)
+import qualified Regularity.Automata.NFAeI as NFAeI
 import Regularity.Automata.NFA (NFA)
+import qualified Regularity.Automata.NFAI as NFAI
 import Regularity.Regex as R
 
 import Data.Text (Text)
@@ -15,8 +17,14 @@ import qualified Data.Text as T
 acceptsNFAe :: Regex -> Text -> Bool
 acceptsNFAe re t = accepts (fromRegex re :: NFAe) t
 
+acceptsNFAeI :: Regex -> Text -> Bool
+acceptsNFAeI re t = accepts (fromRegex re :: NFAeI.NFAe) t
+
 acceptsNFA :: Regex -> Text -> Bool
 acceptsNFA re t = accepts (fromRegex re :: NFA) t
+
+acceptsNFAI :: Regex -> Text -> Bool
+acceptsNFAI re t = accepts (fromRegex re :: NFAI.NFA) t
 
 main :: IO ()
 main = defaultMain
@@ -28,7 +36,15 @@ main = defaultMain
     [ starTests acceptsNFAe $ Star (Char 'a')
     , starTests acceptsNFAe $ Star (Alt Epsilon (Char 'a'))
     ]
+  , bgroup "NFAeI"
+    [ starTests acceptsNFAeI $ Star (Char 'a')
+    , starTests acceptsNFAeI $ Star (Alt Epsilon (Char 'a'))
+    ]
   , bgroup "NFA"
+    [ starTests acceptsNFA $ Star (Char 'a')
+    , starTests acceptsNFA $ Star (Alt Epsilon (Char 'a'))
+    ]
+  , bgroup "NFAI"
     [ starTests acceptsNFA $ Star (Char 'a')
     , starTests acceptsNFA $ Star (Alt Epsilon (Char 'a'))
     ]

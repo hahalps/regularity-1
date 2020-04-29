@@ -18,8 +18,10 @@ import Regularity.Regex (Regex(..), matches)
 import Regularity.Automata
 import Regularity.Automata.NFAe (NFAe)
 import qualified Regularity.Automata.NFAe as NFAe
+import qualified Regularity.Automata.NFAeI as NFAeI
 import Regularity.Automata.NFA (NFA)
 import qualified Regularity.Automata.NFA as NFA
+import qualified Regularity.Automata.NFAI as NFAI
 
 import Text.Megaparsec (parseMaybe)
 
@@ -35,9 +37,13 @@ main = do
       unitTests
     , testProperties "regex property tests" regexPropertyTests
     , testProperties "automata property tests (NFAe)" (automataPropertyTests (accepts :: NFAe -> Text -> Bool))
+    , testProperties "automata property tests (NFAeI)" (automataPropertyTests (accepts :: NFAeI.NFAe -> Text -> Bool))
     , testProperties "automata property tests (NFA)" (automataPropertyTests (accepts :: NFA -> Text -> Bool))
+    , testProperties "automata property tests (NFAI)" (automataPropertyTests (accepts :: NFAI.NFA -> Text -> Bool))
     , testProperties "automata id shifting (NFAe)" (automataShiftTests NFAe.shiftBy)
+    , testProperties "automata id shifting (NFAeI)" (automataShiftTests NFAeI.shiftBy)
     , testProperties "automata id shifting (NFA)" (automataShiftTests NFA.shiftBy)
+    , testProperties "automata id shifting (NFAI)" (automataShiftTests NFAI.shiftBy)
     ]
 
 unitTestSpec :: Spec
