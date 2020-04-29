@@ -4,7 +4,7 @@
 -- website for help: <http://www.serpentine.com/criterion/>.
 import Criterion.Main
 
-import Regularity.Automata as A
+import Regularity.Automata.NFAe as Ae
 import Regularity.Regex as R
 
 import qualified Data.Text as T
@@ -16,8 +16,8 @@ main = defaultMain
     , starTests R.matches $ Star (Alt Epsilon (Char 'a'))
     ]
   , bgroup "automata"
-    [ starTests (A.accepts . A.fromRegex) $ Star (Char 'a')
-    , starTests (A.accepts . A.fromRegex) $ Star (Alt Epsilon (Char 'a'))
+    [ starTests (Ae.accepts . Ae.fromRegex) $ Star (Char 'a')
+    , starTests (Ae.accepts . Ae.fromRegex) $ Star (Alt Epsilon (Char 'a'))
     ]
   ]
 

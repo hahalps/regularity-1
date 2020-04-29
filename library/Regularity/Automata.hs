@@ -1,30 +1,21 @@
-{-# LANGUAGE OverloadedStrings, BangPatterns #-}
 module Regularity.Automata
+  ( StateId(..)
+  , shiftStateIdBy
+  , Automaton(..)
+  )
 where
 
-import Regularity.Regex
-
-import Test.QuickCheck
-
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+import Prelude hiding (seq)
 
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Data.List (intercalate)
-
+import Data.Text (Text)
 import qualified Data.Text as T
 
-{- PLAN
+import Test.QuickCheck
 
-   - epsilon elimination
-     - determinize
-
-   - use real intmaps rather than Map
-
-   - TODO report criterion bug (bad HTML output when there's a newline in the test name)
--}
+import Regularity.Regex (Regex(..))
 
 newtype StateId = StateId { getStateId :: Int }
   deriving (Eq, Ord)
@@ -32,184 +23,23 @@ newtype StateId = StateId { getStateId :: Int }
 instance Show StateId where
   show (StateId i) = "s_" ++ show i
 
--- epsilon transitions: Nothing is epsilon; Just c is a character
+shiftStateIdBy :: StateId -> Int -> StateId
+shiftStateIdBy (StateId i) n = StateId $ i + n
 
-data Automaton =
-  Automaton { states :: !(Set StateId)
-            , delta :: !(Map StateId (Map (Maybe Char) (Set StateId)))
-            , accepting :: !(Set StateId)
-            , startState :: !StateId
-            }
+class Automaton a where
+  accepts :: a -> Text -> Bool
 
-transitionsFor :: Automaton -> StateId -> Map (Maybe Char) (Set StateId)
-transitionsFor a si = Map.findWithDefault Map.empty si (delta a)
+  empty :: a
+  epsilon :: a
+  char :: Char -> a
+  seq :: a -> a -> a
+  alt :: a -> a -> a
+  star :: a -> a
 
-instance Show Automaton where
-  show a =
-    unlines $ [ "STATES: " ++ intercalate ", " (map show $ Set.toAscList $ states a)
-              , "START STATE: " ++ (show $ startState a)
-              , "ACCEPTING: " ++ intercalate ", " (map show $ Set.toAscList $ accepting a)
-              , "TRANSITIONS:"
-              ] ++
-    Map.foldrWithKey
-    (\si trans ls ->
-       let prefix = show si ++ ": "
-           spaces = replicate (length prefix) ' '
-       in
-         prefix :
-         Map.foldrWithKey
-         (\mc sis ls' ->
-             let input = case mc of
-                           Nothing -> "ε"
-                           Just c -> [c]
-             in
-               (spaces ++ input ++ " |-> " ++ intercalate ", " (map show $ Set.toAscList $ sis)) :
-               ls'
-             )
-         ls
-         trans)
-    []
-    (delta a)
-
-shiftBy :: StateId -> Int -> StateId
-shiftBy (StateId i) n = StateId $ i + n
-
-shiftAutomatonBy :: Automaton -> Int -> Automaton
-shiftAutomatonBy a n =
-  Automaton { states = Set.map (`shiftBy` n) (states a)
-            , delta = Map.foldrWithKey
-                      (\si trans delta' ->
-                         Map.insert (si `shiftBy` n) (Map.map (Set.map (`shiftBy` n)) trans) delta')
-                      Map.empty
-                      (delta a)
-            , startState = startState a `shiftBy` n
-            , accepting = Set.map (`shiftBy` n) (accepting a)
-            }
-
-maxStateId :: Automaton -> Int
-maxStateId a = getStateId $ maximum $ states a
-
-accepts :: Automaton -> T.Text -> Bool
-accepts !a !s = any (\si -> si `Set.member` accepting a) $ run a s
-
-run :: Automaton -> T.Text -> Set StateId
-run !a = runIn $ epsilonSteps a $ Set.singleton $ startState a
-  where
-    runIn :: Set StateId -> T.Text -> Set StateId
-    runIn currentStates s =
-      case T.uncons s of
-        Nothing -> currentStates
-        Just (c, s') -> runIn (step a currentStates c) s'
-
-step :: Automaton -> Set StateId -> Char -> Set StateId
-step a currentStates c =
-  let nextStatesFor si = Map.findWithDefault Set.empty (Just c) (a `transitionsFor` si)
-      nextStates =
-        Set.foldr (\si next -> Set.union (nextStatesFor si) next)
-        Set.empty currentStates
-  in
-    epsilonSteps a nextStates
-
-epsilonSteps :: Automaton -> Set StateId -> Set StateId
-epsilonSteps a initial = dfs (Set.toList initial) initial
-  where
-    dfs :: [StateId] -> Set StateId -> Set StateId
-    dfs []       seen = seen
-    dfs (si:sis) seen =
-      let next  = Map.findWithDefault Set.empty Nothing (a `transitionsFor` si)
-          new   = Set.filter (\si' -> not (si' `Set.member` seen)) next
-      in
-        dfs (Set.toList new ++ sis) (new `Set.union` seen)
-                
-empty :: Automaton
-empty =
-  let id0 = StateId 0
-  in
-  Automaton { states = Set.singleton id0
-            , delta = Map.singleton id0 Map.empty
-            , startState = id0
-            , accepting = Set.empty
-            }
-
-epsilon :: Automaton
-epsilon =
-  let id0 = StateId 0
-  in
-    Automaton { states = Set.singleton id0
-              , delta = Map.singleton id0 Map.empty
-              , startState = id0
-              , accepting = Set.singleton id0
-              }
-
-char :: Char -> Automaton
-char c =
-  let id0 = StateId 0
-      id1 = StateId 1
-  in
-    Automaton { states = Set.fromList [id0, id1]
-              , delta = Map.singleton id0 (Map.singleton (Just c) (Set.singleton id1))
-              , startState = id0
-              , accepting = Set.singleton id1
-              }
-
-seq :: Automaton -> Automaton -> Automaton
-seq !a1 !a2 =
-    let a2' = a2 `shiftAutomatonBy` (maxStateId a1 + 1)
-        delta1' = Set.foldr
-                    (\si delta' ->
-                       Map.insertWith (Map.unionWith Set.union)
-                         si (Map.singleton Nothing (Set.singleton $ startState a2')) delta')
-                    (delta a1)
-                    (accepting a1)
-    in
-      Automaton { states = states a1 `Set.union` states a2'
-                , delta = delta1' `Map.union` delta a2'
-                , startState = startState a1
-                , accepting = accepting a2'
-                }
-
-alt :: Automaton -> Automaton -> Automaton
-alt !a1 !a2 =
-  let a1' = a1 `shiftAutomatonBy` 1
-      a2' = a2 `shiftAutomatonBy` (maxStateId a1' + 1)
-      id0 = StateId 0
-  in
-    Automaton { states = Set.insert id0 (states a1' `Set.union` states a2')
-              , delta = Map.insert id0
-                          (Map.singleton Nothing (Set.fromList [ startState a1'
-                                                               , startState a2'
-                                                               ]))
-                        (delta a1' `Map.union` delta a2')
-              , startState = id0
-              , accepting = accepting a1' `Set.union` accepting a2'
-              }                                                        
-
-star :: Automaton -> Automaton
-star !a =
-  let
-    delta' =  Set.foldr
-                    (\si delta'' ->
-                       Map.insertWith (Map.unionWith Set.union)
-                         si (Map.singleton Nothing (Set.singleton $ startState a)) delta'')
-                    (delta a)
-                    (accepting a)
-  in
-    Automaton { states = states a
-              , delta = delta'
-              , startState = startState a
-              , accepting = Set.insert (startState a) (accepting a)
-              }
-    
-fromRegex :: Regex -> Automaton
-fromRegex Empty         = empty
-fromRegex Epsilon       = epsilon
-fromRegex (Char c)      = char c
-fromRegex (Alt re1 re2) = alt (fromRegex re1) (fromRegex re2)
-fromRegex (Seq re1 re2) = Regularity.Automata.seq (fromRegex re1) (fromRegex re2)
-fromRegex (Star re)     = star (fromRegex re)
-
-instance Arbitrary Automaton where
-  arbitrary = oneof [ pure empty
-                    , pure epsilon
-                    , char <$> arbitrary
-                    ] -- TODO use fromRegex instead!
+  fromRegex :: Regex -> a
+  fromRegex Empty         = empty
+  fromRegex Epsilon       = epsilon
+  fromRegex (Char c)      = char c
+  fromRegex (Alt re1 re2) = alt (fromRegex re1) (fromRegex re2)
+  fromRegex (Seq re1 re2) = seq (fromRegex re1) (fromRegex re2)
+  fromRegex (Star re)     = star (fromRegex re)
