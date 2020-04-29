@@ -4,10 +4,19 @@
 -- website for help: <http://www.serpentine.com/criterion/>.
 import Criterion.Main
 
-import Regularity.Automata.NFAe as Ae
+import Regularity.Automata
+import Regularity.Automata.NFAe (NFAe)
+import Regularity.Automata.NFA (NFA)
 import Regularity.Regex as R
 
+import Data.Text (Text)
 import qualified Data.Text as T
+
+acceptsNFAe :: Regex -> Text -> Bool
+acceptsNFAe re t = accepts (fromRegex re :: NFAe) t
+
+acceptsNFA :: Regex -> Text -> Bool
+acceptsNFA re t = accepts (fromRegex re :: NFA) t
 
 main :: IO ()
 main = defaultMain
@@ -15,13 +24,17 @@ main = defaultMain
     [ starTests R.matches $ Star (Char 'a')
     , starTests R.matches $ Star (Alt Epsilon (Char 'a'))
     ]
-  , bgroup "automata"
-    [ starTests (Ae.accepts . Ae.fromRegex) $ Star (Char 'a')
-    , starTests (Ae.accepts . Ae.fromRegex) $ Star (Alt Epsilon (Char 'a'))
+  , bgroup "NFAe"
+    [ starTests acceptsNFAe $ Star (Char 'a')
+    , starTests acceptsNFAe $ Star (Alt Epsilon (Char 'a'))
+    ]
+  , bgroup "NFA"
+    [ starTests acceptsNFA $ Star (Char 'a')
+    , starTests acceptsNFA $ Star (Alt Epsilon (Char 'a'))
     ]
   ]
 
-starTests :: Show a => (a -> T.Text -> b) -> a -> Benchmark
+starTests :: Show a => (a -> Text -> b) -> a -> Benchmark
 starTests matcher re =
   bgroup (show re)
   [ bench "on aaaa" $

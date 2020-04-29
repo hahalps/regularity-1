@@ -38,3 +38,5 @@ install:
 script:
 # Build the package, its tests, and its docs and run the tests
 - stack --no-terminal test --haddock --no-haddock-deps
+# Make sure the benchmarks work, too
+- stack --no-terminal bench
