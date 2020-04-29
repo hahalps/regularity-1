@@ -1,7 +1,7 @@
 - determinize NFAe into NFA?
 - DFAs?
 
-- use real intmaps rather than Map
+- convert to only using intmaps?
 
 - have travis save the results.html from benchmarking
 
