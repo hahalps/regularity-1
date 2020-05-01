@@ -39,4 +39,11 @@ script:
 # Build the package, its tests, and its docs and run the tests
 - stack --no-terminal test --haddock --no-haddock-deps
 # Make sure the benchmarks work, too
-- stack --no-terminal bench
+- mkdir timing
+- stack --no-terminal bench --ba "--output timing/$(date '+%Y-%m-%d_%H:%M')_${TRAVIS_JOB_NAME}_${TRAVIS_COMMIT}.html"
+
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
+  keep_history: true
