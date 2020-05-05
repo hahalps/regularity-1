@@ -7,13 +7,7 @@ where
 
 import Prelude hiding (seq)
 
-import Data.Set (Set)
-import qualified Data.Set as Set
-
 import Data.Text (Text)
-import qualified Data.Text as T
-
-import Test.QuickCheck
 
 import Regularity.Regex (Regex(..))
 
@@ -29,17 +23,17 @@ shiftStateIdBy (StateId i) n = StateId $ i + n
 class Automaton a where
   accepts :: a -> Text -> Bool
 
-  empty :: a
-  epsilon :: a
-  char :: Char -> a
-  seq :: a -> a -> a
-  alt :: a -> a -> a
-  star :: a -> a
+  aempty :: a
+  aepsilon :: a
+  achar :: Char -> a
+  aseq :: a -> a -> a
+  aalt :: a -> a -> a
+  astar :: a -> a
 
   fromRegex :: Regex -> a
-  fromRegex Empty         = empty
-  fromRegex Epsilon       = epsilon
-  fromRegex (Char c)      = char c
-  fromRegex (Alt re1 re2) = alt (fromRegex re1) (fromRegex re2)
-  fromRegex (Seq re1 re2) = seq (fromRegex re1) (fromRegex re2)
-  fromRegex (Star re)     = star (fromRegex re)
+  fromRegex Empty         = aempty
+  fromRegex Epsilon       = aepsilon
+  fromRegex (Char c)      = achar c
+  fromRegex (Alt re1 re2) = aalt (fromRegex re1) (fromRegex re2)
+  fromRegex (Seq re1 re2) = aseq (fromRegex re1) (fromRegex re2)
+  fromRegex (Star re)     = astar (fromRegex re)

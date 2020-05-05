@@ -9,19 +9,14 @@ import qualified Test.Tasty
 import Test.Tasty.Hspec
 import Test.Tasty.QuickCheck
 
-import Prelude hiding (seq)
-
-import Regularity hiding (main)
+import Regularity.Regex (Regex(..), matches, starNesting, textMatching)
 import qualified Regularity.Regex as Regex
-import Regularity.Regex (Regex(..), matches)
 
 import Regularity.Automata
 import Regularity.Automata.NFAe (NFAe)
 import qualified Regularity.Automata.NFAe as NFAe
-import qualified Regularity.Automata.NFAeI as NFAeI
 import Regularity.Automata.NFA (NFA)
 import qualified Regularity.Automata.NFA as NFA
-import qualified Regularity.Automata.NFAI as NFAI
 
 import Text.Megaparsec (parseMaybe)
 
@@ -37,13 +32,9 @@ main = do
       unitTests
     , testProperties "regex property tests" regexPropertyTests
     , testProperties "automata property tests (NFAe)" (automataPropertyTests (accepts :: NFAe -> Text -> Bool))
-    , testProperties "automata property tests (NFAeI)" (automataPropertyTests (accepts :: NFAeI.NFAe -> Text -> Bool))
     , testProperties "automata property tests (NFA)" (automataPropertyTests (accepts :: NFA -> Text -> Bool))
-    , testProperties "automata property tests (NFAI)" (automataPropertyTests (accepts :: NFAI.NFA -> Text -> Bool))
     , testProperties "automata id shifting (NFAe)" (automataShiftTests NFAe.shiftBy)
-    , testProperties "automata id shifting (NFAeI)" (automataShiftTests NFAeI.shiftBy)
     , testProperties "automata id shifting (NFA)" (automataShiftTests NFA.shiftBy)
-    , testProperties "automata id shifting (NFAI)" (automataShiftTests NFAI.shiftBy)
     ]
 
 unitTestSpec :: Spec
@@ -126,17 +117,17 @@ automataShiftTests shiftBy =
 automataPropertyTests :: Automaton a => (a -> Text -> Bool) -> [(String, Property)]
 automataPropertyTests accepts =
   [ ("empty automaton rejects all strings"
-    , property $ \s -> not (empty `accepts` T.pack s))
+    , property $ \s -> not (aempty `accepts` T.pack s))
   , ("epsilon automaton accepts only the empty string"
     , property $ \rawS ->
         let s = T.pack rawS
             isEmpty = T.null s
         in
           classify isEmpty "empty" $
-          isEmpty === epsilon `accepts` s)
+          isEmpty === aepsilon `accepts` s)
   , ("char automaton accepts only its character"
     , property $ \c rawS ->
-        let a = char c
+        let a = achar c
             s = T.pack rawS
             
             startsWithC = case T.uncons s of
@@ -150,7 +141,7 @@ automataPropertyTests accepts =
           (startsWithC && T.length s == 1) === accepting)
   , ("char automaton accepts only its character (forcing char on front)"
     , property $ \c rawS ->
-        let a = char c
+        let a = achar c
             s = T.pack (c : rawS)
 
             accepting = a `accepts` s
@@ -159,10 +150,10 @@ automataPropertyTests accepts =
           (T.length s == 1) === accepting)
   , ("char automaton accepts strings matching exactly"
     , property $ \c ->
-        char c `accepts` T.singleton c)
+        achar c `accepts` T.singleton c)
   , ("alt automaton accepts either character"
     , property $ \c1 c2 ->
-        let a = alt (char c1) (char c2) in
+        let a = aalt (achar c1) (achar c2) in
           conjoin [ a `accepts` T.singleton c1
                   , a `accepts` T.singleton c2
                   , not (a `accepts` T.empty)
@@ -170,7 +161,7 @@ automataPropertyTests accepts =
                   ])
   , ("seq automaton accepts characters in order"
     , property $ \c1 c2 ->
-        let a = seq (char c1) (char c2) in
+        let a = aseq (achar c1) (achar c2) in
           conjoin [ a `accepts` T.pack [c1, c2]
                   , not (a `accepts` T.empty)
                   , not (a `accepts` T.pack [c1])
@@ -179,18 +170,18 @@ automataPropertyTests accepts =
                   , c1 == c2 || not (a `accepts` T.pack [c2,c2])
                   ])
   , ("star automaton accepts empty string"
-    , property $ \c -> star (char c) `accepts` T.empty)
+    , property $ \c -> astar (achar c) `accepts` T.empty)
 
   , ("star automaton accepts single char"
-    , property $ \c -> star (char c) `accepts` T.singleton c)
+    , property $ \c -> astar (achar c) `accepts` T.singleton c)
 
   , ("star automaton accepts ten characters"
     , property $ \c ->
-        star (char c) `accepts` T.replicate 10 (T.singleton c))
+        astar (achar c) `accepts` T.replicate 10 (T.singleton c))
 
   , ("star automaton doesn't accept weird suffixes"
     , property $ \c ->
-        not (star (char c) `accepts` T.pack [c,c,c,c,c, 'b', 'c']))
+        not (astar (achar c) `accepts` T.pack [c,c,c,c,c, 'b', 'c']))
 
   , ("regexes and automata agree"
     , property $ \re rawS ->

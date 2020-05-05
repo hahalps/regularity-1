@@ -4,4 +4,3 @@
 - equivalence?
 - regex matching using derivatives
 
-- convert to only using intmaps
