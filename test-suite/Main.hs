@@ -35,6 +35,25 @@ main = do
     , testProperties "automata property tests (NFA)" (automataPropertyTests (accepts :: NFA -> Text -> Bool))
     , testProperties "automata id shifting (NFAe)" (automataShiftTests NFAe.shiftBy)
     , testProperties "automata id shifting (NFA)" (automataShiftTests NFA.shiftBy)
+    , testProperties "epsilon determinization"
+      [ ("arbitrary regexes (accepting only)",
+          property $ \r -> forAll (textMatching r) $ \s ->
+            let ae = fromRegex r :: NFAe
+                a  = NFA.fromNFAe ae
+            in
+              ae `accepts` s .&&. a `accepts `s)
+      , ("arbitrary regexes (arbitrary strings)"
+        , property $ \re rawS ->
+            let s  = T.pack rawS
+                ae = fromRegex re :: NFAe
+                a  = NFA.fromNFAe ae :: NFA
+                accepting = ae `accepts` s
+            in
+              classify accepting "accepting" $
+              classify (T.null s) "empty string" $
+              accepting === (a `accepts` s))
+
+      ]
     ]
 
 unitTestSpec :: Spec

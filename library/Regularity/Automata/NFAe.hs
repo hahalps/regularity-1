@@ -1,7 +1,9 @@
 {-# LANGUAGE OverloadedStrings, BangPatterns #-}
 module Regularity.Automata.NFAe
-  ( NFAe()
+  ( NFAe(..)
   , shiftBy
+  , transitionsFor
+  , epsilonSteps
   )
 where
 
