@@ -114,7 +114,8 @@ regexPropertyTests =
   , ("stringMatching correct"
     , property $ \r -> forAll (textMatching r) $ \s -> property (r `matches` s)
     )
-        
+  , ("nullable correct"
+    , property $ \r -> Regex.nullable r === (r `matches` T.empty)) 
   ]
 
 automataShiftTests :: Automaton a => (a -> Int -> a) -> [(String, Property)]

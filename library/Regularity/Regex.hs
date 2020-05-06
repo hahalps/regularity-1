@@ -6,6 +6,8 @@ module Regularity.Regex
   , Parser
   , matches
   , allMatches
+  , deriv
+  , nullable
   , size
   , starNesting
   , parse
@@ -82,6 +84,20 @@ starNesting (Char _)      = 0
 starNesting (Seq re1 re2) = max (starNesting re1) (starNesting re2)
 starNesting (Alt re1 re2) = max (starNesting re1) (starNesting re2)
 starNesting (Star re)     = 1 + starNesting re
+
+-- | Brzozowski derivatives
+
+deriv :: Char -> Regex -> Regex
+deriv = undefined
+
+-- `nullable re` returns true iff re accepts the empty string
+nullable :: Regex -> Bool
+nullable Empty         = False
+nullable Epsilon       = True
+nullable (Char _)      = False
+nullable (Seq re1 re2) = nullable re1 && nullable re2
+nullable (Alt re1 re2) = nullable re1 || nullable re2
+nullable (Star _re)    = True
 
 -- | Show instance
 
