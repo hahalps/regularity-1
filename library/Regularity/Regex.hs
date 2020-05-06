@@ -3,6 +3,7 @@
 -- | Regular expressions
 module Regularity.Regex
   ( Regex(..)
+  , empty, epsilon, char, seq, alt, star
   , Parser
   , matches
   , allMatches
@@ -18,7 +19,9 @@ module Regularity.Regex
   )
 where
 
-import Text.Megaparsec hiding (parse)
+import Prelude hiding (seq)
+
+import Text.Megaparsec hiding (parse, empty)
 
 import Test.QuickCheck
 
@@ -40,6 +43,37 @@ data Regex =
   | Alt !Regex !Regex
   | Star !Regex
   deriving (Eq, Ord)
+
+-- | Smart constructors
+
+empty :: Regex
+empty = Empty
+
+epsilon :: Regex
+epsilon = Epsilon
+
+char :: Char -> Regex
+char = Char
+
+seq :: Regex -> Regex -> Regex
+seq Epsilon re2     = re2
+seq re1     Epsilon = re1
+seq Empty   _re2    = Empty
+seq _re1    Empty   = Empty
+seq re1     re2     = Seq re1 re2
+
+alt :: Regex -> Regex -> Regex
+alt Empty   re2     = re2
+alt re1     Empty   = re1
+alt Epsilon re2     = if nullable re2 then re2 else Alt Epsilon re2
+alt re1     Epsilon = if nullable re1 then re1 else Alt re1 Epsilon
+alt re1     re2     = if re1 == re2 then re1 else Alt re1 re2
+
+star :: Regex -> Regex
+star Empty     = Epsilon
+star Epsilon   = Epsilon
+star (Star re) = Star re
+star re        = Star re
 
 -- | Regex matching
 
@@ -91,20 +125,16 @@ starNesting (Star re)     = 1 + starNesting re
 -- | Brzozowski derivatives
 
 dMatches :: Regex -> Text -> Bool
-dMatches re t = nullable (T.foldr deriv re t)
+dMatches re t = nullable (T.foldl (flip deriv) re t)
 
 -- re `matches` c:s iff deriv c re `matches` s
 deriv :: Char -> Regex -> Regex
-deriv _c Empty         = Empty
-deriv _c Epsilon       = Empty
-deriv  c (Char c')     = if c == c' then Epsilon else Empty
-deriv  c (Seq re1 re2) =
-  --  Alt (Seq (deriv c re1) re2) (if nullable re1 then deriv c re2 else Empty)
-  if nullable re1
-  then Alt (Seq (deriv c re1) re2) (deriv c re2)
-  else      Seq (deriv c re1) re2
-deriv  c (Alt re1 re2) = Alt (deriv c re1) (deriv c re2)
-deriv  c (Star re)     = Seq (deriv c re) (Star re)
+deriv _c Empty         = empty
+deriv _c Epsilon       = empty
+deriv  c (Char c')     = if c == c' then epsilon else empty
+deriv  c (Seq re1 re2) = alt (seq (deriv c re1) re2) (if nullable re1 then deriv c re2 else empty)
+deriv  c (Alt re1 re2) = alt (deriv c re1) (deriv c re2)
+deriv  c (Star re)     = seq (deriv c re) (star re)
 
 -- `nullable re` returns true iff re accepts the empty string
 nullable :: Regex -> Bool
@@ -175,7 +205,7 @@ instance Arbitrary Regex where
 shrinkRegex :: Regex -> [Regex]
 shrinkRegex Empty         = []
 shrinkRegex Epsilon       = [Empty]
-shrinkRegex (Char _c)     = map Char ['a'..'z'] ++ [Epsilon, Empty]
+shrinkRegex (Char _c)     = [Epsilon, Empty]
 shrinkRegex (Seq re1 re2) = [Epsilon, Empty] ++
                             [re1, re2] ++
                             [Seq re1' re2' | re1' <- shrinkRegex re1, re2' <- shrinkRegex re2]

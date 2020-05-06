@@ -124,9 +124,9 @@ regexPropertyTests =
   , ("dMatches correct on empty string"
     , property $ \r -> Regex.nullable r === (r `dMatches` T.empty))
   , ("dMatches (accepting only)"
-    , mapSize (`div` 100) $ property $
+    , property $
       \r -> forAll (textMatching r) $ \s ->
-        r `dMatches` s)
+        property (r `dMatches` s))
   , ("matches and dMatches agree (arbitrary strings)"
     , property $ \r rawS ->
         let s = T.pack rawS
