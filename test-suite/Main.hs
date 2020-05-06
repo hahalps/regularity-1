@@ -9,7 +9,7 @@ import qualified Test.Tasty
 import Test.Tasty.Hspec
 import Test.Tasty.QuickCheck
 
-import Regularity.Regex (Regex(..), matches, starNesting, textMatching)
+import Regularity.Regex (Regex(..), matches, dMatches, starNesting, textMatching)
 import qualified Regularity.Regex as Regex
 
 import Regularity.Automata
@@ -111,11 +111,31 @@ regexPropertyTests =
         label ("for a regex of size " ++ show (size r) ++ " with " ++ show (starNesting r ) ++ " nested stars, found a string of length " ++ show (T.length s))
         True
     ) -}
-  , ("stringMatching correct"
+  , ("textMatching correct"
     , property $ \r -> forAll (textMatching r) $ \s -> property (r `matches` s)
     )
   , ("nullable correct"
-    , property $ \r -> Regex.nullable r === (r `matches` T.empty)) 
+    , property $ \r -> Regex.nullable r === (r `matches` T.empty))
+  , ("deriv correct (accepting only)"
+    , property $ \r -> forAll (textMatching r) $ \s ->
+        case T.uncons s of
+          Nothing -> property Discard
+          Just (c,s') -> property (Regex.deriv c r `matches` s'))
+  , ("dMatches correct on empty string"
+    , property $ \r -> Regex.nullable r === (r `dMatches` T.empty))
+  , ("dMatches (accepting only)"
+    , mapSize (`div` 100) $ property $
+      \r -> forAll (textMatching r) $ \s ->
+        r `dMatches` s)
+  , ("matches and dMatches agree (arbitrary strings)"
+    , property $ \r rawS ->
+        let s = T.pack rawS
+            accepting = r `matches` s in
+          
+        classify accepting "accepting" $
+        classify (T.null s) "empty string" $
+
+        accepting === (r `dMatches` s))
   ]
 
 automataShiftTests :: Automaton a => (a -> Int -> a) -> [(String, Property)]

@@ -2,6 +2,7 @@
 - DFAs?
 - union, intersection, negation
 - equivalence?
+- smart constructors
 - **regex matching using derivatives**
 
   basic idea: given a regex E, compute

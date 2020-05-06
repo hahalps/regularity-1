@@ -6,6 +6,7 @@ module Regularity.Regex
   , Parser
   , matches
   , allMatches
+  , dMatches
   , deriv
   , nullable
   , size
@@ -21,7 +22,9 @@ import Text.Megaparsec hiding (parse)
 
 import Test.QuickCheck
 
+import Data.Text (Text)
 import qualified Data.Text as T
+
 import Data.Void (Void)
 
 import qualified Data.Set as Set
@@ -87,8 +90,21 @@ starNesting (Star re)     = 1 + starNesting re
 
 -- | Brzozowski derivatives
 
+dMatches :: Regex -> Text -> Bool
+dMatches re t = nullable (T.foldr deriv re t)
+
+-- re `matches` c:s iff deriv c re `matches` s
 deriv :: Char -> Regex -> Regex
-deriv = undefined
+deriv _c Empty         = Empty
+deriv _c Epsilon       = Empty
+deriv  c (Char c')     = if c == c' then Epsilon else Empty
+deriv  c (Seq re1 re2) =
+  --  Alt (Seq (deriv c re1) re2) (if nullable re1 then deriv c re2 else Empty)
+  if nullable re1
+  then Alt (Seq (deriv c re1) re2) (deriv c re2)
+  else      Seq (deriv c re1) re2
+deriv  c (Alt re1 re2) = Alt (deriv c re1) (deriv c re2)
+deriv  c (Star re)     = Seq (deriv c re) (Star re)
 
 -- `nullable re` returns true iff re accepts the empty string
 nullable :: Regex -> Bool
