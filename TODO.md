@@ -1,6 +1,12 @@
 - DFAs?
 - union, intersection, negation
 - equivalence?
+  Hopcroft and Karp bisimulation algorithm
+- JIT compile w/LLVM
+
+  given a regex, use LLVM (a compiler framework) to generate code at runtime
+  the SUPER EFFICIENTLY recognizes that regular expression
+
 - refactor type classes for regular things
 
   class Regular a where

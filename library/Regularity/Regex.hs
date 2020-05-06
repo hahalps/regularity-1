@@ -124,6 +124,17 @@ starNesting (Star re)     = 1 + starNesting re
 
 -- | Brzozowski derivatives
 
+{- idea: Brzozowski automata
+
+  A(E)
+
+  Q \subseteq Regex   IMPLICIT STATES
+  s0 = E
+  delta(s, c) = deriv_c(s)
+  accepting(s) = nullable s
+
+-}
+
 dMatches :: Regex -> Text -> Bool
 dMatches re t = nullable (T.foldl (flip deriv) re t)
 
