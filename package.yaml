@@ -36,6 +36,7 @@ executables:
     dependencies:
     - base
     - regularity
+    - containers
     ghc-options:
     - -rtsopts
     - -threaded
@@ -62,6 +63,7 @@ tests:
     dependencies:
     - base
     - regularity
+    - containers
     - text
     - megaparsec
     - tasty

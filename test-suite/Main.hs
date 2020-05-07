@@ -9,7 +9,7 @@ import qualified Test.Tasty
 import Test.Tasty.Hspec
 import Test.Tasty.QuickCheck
 
-import Regularity.Regex (Regex(..), matches, dMatches, starNesting, textMatching)
+import Regularity.Regex (Regex(..), matches, dMatches, starNesting, textMatching, Alphabet, regexesOfSize)
 import qualified Regularity.Regex as Regex
 
 import Regularity.Automata
@@ -19,6 +19,9 @@ import Regularity.Automata.NFA (NFA)
 import qualified Regularity.Automata.NFA as NFA
 
 import Text.Megaparsec (parseMaybe)
+
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -88,6 +91,28 @@ unitTestSpec = parallel $ do
     it "matching (𝜖|a)* on aaaa" $ do
       matches re_epsAStar "aaaa" `shouldBe` True
 
+    let sigma = Set.fromList "ab"
+    regexesOfSizeCorrect sigma 0
+    regexesOfSizeCorrect sigma 1
+    regexesOfSizeCorrect sigma 2
+    regexesOfSizeCorrect sigma 3
+    regexesOfSizeCorrect sigma 4
+    regexesOfSizeCorrect sigma 5
+
+    let sigma = Set.fromList "abc"
+    regexesOfSizeCorrect sigma 0
+    regexesOfSizeCorrect sigma 1
+    regexesOfSizeCorrect sigma 2
+    regexesOfSizeCorrect sigma 3
+    regexesOfSizeCorrect sigma 4
+    regexesOfSizeCorrect sigma 5
+
+regexesOfSizeCorrect :: Alphabet -> Int -> SpecWith ()
+regexesOfSizeCorrect sigma n =
+  it ("regexesOfSize " ++ show n ++ " correctly sized") $ do
+    (all ((==n) . Regex.size) $ regexesOfSize sigma n)
+      `shouldBe` True
+
 regexPropertyTests :: [(String, Property)]
 regexPropertyTests =
   [ ("printing -> parsing round trip up to left association"
@@ -136,6 +161,15 @@ regexPropertyTests =
         classify (T.null s) "empty string" $
 
         accepting === (r `dMatches` s))
+  , ("derivitive wrt fresh char is empty"
+    , property $ \r ->        
+        let sigma = Regex.alphabetOf r
+        in
+          not (Set.null sigma) ==>
+          forAll arbitrary $ \c ->
+            not (c `Set.member` sigma) ==>
+            label ("|sigma| = " ++ show (Set.size sigma)) $
+            Regex.deriv c r === Empty)
   ]
 
 automataShiftTests :: Automaton a => (a -> Int -> a) -> [(String, Property)]

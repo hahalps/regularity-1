@@ -9,11 +9,15 @@ module Regularity.Regex
   , allMatches
   , dMatches
   , deriv
+  , derivS
   , nullable
   , size
+  , alphabetOf
   , starNesting
   , parse
   , forceLeftAssociation
+  , Alphabet()
+  , regexesOfSize
   , textMatching
   , stringMatching
   )
@@ -111,8 +115,16 @@ size Empty         = 0
 size Epsilon       = 1
 size (Char _)      = 1
 size (Seq re1 re2) = size re1 + size re2 + 1
-size (Alt re1 re2) =  size re1 + size re2 + 1
+size (Alt re1 re2) = size re1 + size re2 + 1
 size (Star re)     = size re + 1
+
+alphabetOf :: Regex -> Alphabet
+alphabetOf Empty         = Set.empty
+alphabetOf Epsilon       = Set.empty
+alphabetOf (Char c)      = Set.singleton c
+alphabetOf (Seq re1 re2) = alphabetOf re1 `Set.union` alphabetOf re2
+alphabetOf (Alt re1 re2) = alphabetOf re1 `Set.union` alphabetOf re2
+alphabetOf (Star re)     = alphabetOf re
 
 starNesting :: Regex -> Int
 starNesting Empty         = 0
@@ -146,6 +158,14 @@ deriv  c (Char c')     = if c == c' then epsilon else empty
 deriv  c (Seq re1 re2) = alt (seq (deriv c re1) re2) (if nullable re1 then deriv c re2 else empty)
 deriv  c (Alt re1 re2) = alt (deriv c re1) (deriv c re2)
 deriv  c (Star re)     = seq (deriv c re) (star re)
+
+derivS :: Char -> Regex -> Regex
+derivS _c Empty         = Empty
+derivS _c Epsilon       = Empty
+derivS  c (Char c')     = if c == c' then Epsilon else Empty
+derivS  c (Seq re1 re2) = Alt (Seq (derivS c re1) re2) (if nullable re1 then derivS c re2 else Empty)
+derivS  c (Alt re1 re2) = Alt (derivS c re1) (derivS c re2)
+derivS  c (Star re)     = Seq (derivS c re) (Star re)
 
 -- `nullable re` returns true iff re accepts the empty string
 nullable :: Regex -> Bool
@@ -240,6 +260,43 @@ regexes = sized $ gen
                       , Alt <$> gen (n `div` 2) <*> gen (n `div` 2)
                       , Star <$> gen (n `div` 10)
                       ]
+
+type Alphabet = Set Char
+
+regexesOfSize :: Alphabet -> Int -> Set Regex
+regexesOfSize _sigma 0 = Set.singleton Empty
+regexesOfSize  sigma 1 =
+  (Set.fromList [ Epsilon
+                , Star Empty
+                , Seq Empty Empty
+                , Alt Empty Empty
+                ])
+  `Set.union`
+  (Set.fromList $ map Char $ Set.toList sigma)
+regexesOfSize  sigma n =
+  let n' = n-1
+      splits = [ ( regexesOfSize sigma i
+                 , regexesOfSize sigma (n'-i))
+               | i <- [0..n'] ]
+      binary op =
+        Set.unions $
+        map
+          (\(ls,rs) ->
+              Set.foldr
+                (\l acc ->
+                    Set.foldr
+                      (\r acc' ->
+                          Set.insert (op l r) acc')
+                      acc
+                      rs)
+                Set.empty
+                ls)
+          splits
+  in
+    Set.unions [ binary Seq
+               , binary Alt
+               , Set.map Star $ regexesOfSize sigma (n-1)
+               ]
 
 textMatching :: Regex -> Gen T.Text
 textMatching re = T.pack <$> stringMatching re
