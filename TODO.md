@@ -1,3 +1,6 @@
+- height vs size
+- foldl for automata?
+
 - DFAs?
 - union, intersection, negation
 - equivalence?

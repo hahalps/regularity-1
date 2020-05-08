@@ -130,14 +130,13 @@ Qed.
 Lemma deriv_height_constant :
   ~ exists k,
       (forall c re, h (d c re) <= k + h re) /\
-      (forall c, exists re, n re = true /\ h (d c re) = k + h re).
+      (exists c, exists re, n re = true /\ h (d c re) = k + h re).
 Proof.
   intros contra; destruct contra as [k [H Hexact]].
-  specialize (Hexact zero).
-  destruct Hexact as [re1 [Hn Hexact]].
-  assert (2 + h (d zero re1) = h (d zero (seq re1 empty))) as H2.
+  destruct Hexact as [c [re1 [Hn Hexact]]].
+  assert (2 + h (d c re1) = h (d c (seq re1 empty))) as H2.
   { apply h_seq_nre1_p2; auto; try solve [ simpl; lia ]. }
-  assert (h (d zero (seq re1 empty)) <= k + h (seq re1 empty)) as Hseq by apply H.
+  assert (h (d c (seq re1 empty)) <= k + h (seq re1 empty)) as Hseq by apply H.
   assert (h (seq re1 empty) = 1 + h re1) as Hh by solve [ simpl; lia ].
   replace (h (seq re1 empty)) with (1 + h re1) in Hseq.
   lia.
@@ -146,7 +145,7 @@ Qed.
 Lemma deriv_height_constant_general :
   ~ exists k,
       (forall c re, h (d c re) <= k + h re) /\
-      (forall c, exists re, h (d c re) = k + h re).
+      (exists c, exists re, h (d c re) = k + h re).
 Proof.
   intros contra; destruct contra as [k [H Hexact]].
 
@@ -159,20 +158,19 @@ Proof.
   }
 
   (* finding a good LHS of a sequence *)
-  specialize (Hexact zero).
-  destruct Hexact as [re1 Hexact].
+  destruct Hexact as [c [re1 Hexact]].
   pose (re1' := (alt epsilon re1)).
   assert (n re1' = true) as Hn by auto.
   assert (0 < h re1) as Hhre1.
   { destruct re1; simpl; inversion Hexact; lia. }
   assert (0 < h re1') as Hhre1' by solve [ simpl; lia ].
-  assert (h (d zero re1') = k + h re1') as Hexact'.
+  assert (h (d c re1') = k + h re1') as Hexact'.
   { subst re1'. unfold d. fold d. unfold h. fold h. lia. }
 
   (* uh oh *)
-  assert (2 + h (d zero re1') = h (d zero (seq re1' empty))) as H2.
+  assert (2 + h (d c re1') = h (d c (seq re1' empty))) as H2.
   { apply h_seq_nre1_p2; auto; try solve [ simpl; lia ]. }
-  assert (h (d zero (seq re1' empty)) <= k + h (seq re1' empty)) as Hseq by apply H.
+  assert (h (d c (seq re1' empty)) <= k + h (seq re1' empty)) as Hseq by apply H.
   assert (h (seq re1' empty) = 1 + h re1') as Hh by solve [ simpl; lia ].
   replace (h (seq re1' empty)) with (1 + h re1') in Hseq.
   rewrite <- H2 in Hseq.
