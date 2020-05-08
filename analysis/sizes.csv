@@ -1,0 +1,21 @@
+name,alphabet,initial size,nth derivative,largest derivative regex
+smart,ab,6,1,20
+plain,ab,6,1,27
+smart,ab,6,2,54
+plain,ab,6,2,100
+smart,ab,6,3,119
+plain,ab,6,3,336
+smart,ab,6,4,230
+plain,ab,6,4,1039
+smart,ab,6,5,455
+plain,ab,6,5,3031
+smart,ab,6,6,932
+plain,ab,6,6,8463
+smart,ab,6,7,1889
+plain,ab,6,7,22831
+smart,ab,6,8,3806
+plain,ab,6,8,59903
+smart,ab,6,9,7643
+plain,ab,6,9,153599
+smart,ab,6,10,15320
+plain,ab,6,10,386303
