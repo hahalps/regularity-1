@@ -10,7 +10,7 @@ exp.smart.model <- lm(Size ~ exp(Derivative), subset(sizes, Algorithm %in% "smar
 
 label_for <- function(name, model) {
   s <- summary(model)
-  return(sprintf("%s\ny = %f + %fe^(x)\nR^2=%f", name, s$coefficients[1], s$coefficients[2], s$r.squared))
+  return(sprintf("%s\ny = %f + %fe^x\nR^2=%f", name, s$coefficients[1], s$coefficients[2], s$r.squared))
 }
 
 plainLabel <- label_for("plain", exp.plain.model)
