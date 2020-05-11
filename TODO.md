@@ -1,6 +1,8 @@
 - height vs size
 - foldl for automata?
 
+- # of equivalence classes of regexes at each size?
+
 - DFAs?
 - union, intersection, negation
 - equivalence?
@@ -20,6 +22,13 @@
     star :: a -> a
     
     matches :: a -> Text -> Bool
+
+- refactor Automaton class
+
+  class Automaton a s where
+    startState :: a -> s
+    step :: a -> s -> c -> s
+    accepting :: a -> s -> Bool
 
 - less interesting/possibly pointless abstraction
 
