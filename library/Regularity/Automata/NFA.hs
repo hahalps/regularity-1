@@ -103,13 +103,7 @@ accepts :: NFA -> T.Text -> Bool
 accepts !a !s = IntSet.foldr (\si found -> found || (si `IntSet.member` accepting a)) False $ run a s
 
 run :: NFA -> T.Text -> StateSet
-run !a = runIn $ IntSet.singleton $ startState a
-  where
-    runIn :: StateSet -> T.Text -> StateSet
-    runIn currentStates s =
-      case T.uncons s of
-        Nothing -> currentStates
-        Just (c, s') -> runIn (step a currentStates c) s'
+run !a s = T.foldl (step a) (IntSet.singleton $ startState a) s
 
 step :: NFA -> StateSet -> Char -> StateSet
 step a currentStates c =

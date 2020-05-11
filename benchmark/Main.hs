@@ -18,14 +18,18 @@ acceptsNFA re t = accepts (fromRegex re :: NFA) t
 
 main :: IO ()
 main = defaultMain
+  [ scalingTests "regex" R.matches
+  , scalingTests "regex (Brzozowski derivative)" R.dMatches
+  , scalingTests "NFA" acceptsNFA
+  , scalingTests "NFAe" acceptsNFAe
+  ]
+
+oldStarTests :: IO ()
+oldStarTests = defaultMain
   [ starTests "regex" R.matches
   , starTests "regex (Brzozowski derivative)" R.dMatches
   , starTests "NFA" acceptsNFA
   , starTests "NFAe" acceptsNFAe
-  , scalingTests "regex" R.matches
-  , scalingTests "regex (Brzozowski derivative)" R.dMatches
-  , scalingTests "NFA" acceptsNFA
-  , scalingTests "NFAe" acceptsNFAe
   ]
 
 scalingTests :: String -> (Regex -> Text -> b) -> Benchmark

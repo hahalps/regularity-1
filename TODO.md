@@ -1,7 +1,5 @@
-- height vs size
-- foldl for automata?
-
 - # of equivalence classes of regexes at each size?
+- height vs size
 
 - DFAs?
 - union, intersection, negation
