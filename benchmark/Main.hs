@@ -5,10 +5,13 @@ import Criterion.Main
 import Data.Text (Text)
 import qualified Data.Text as T
 
-import Regularity.Automata
-import Regularity.Automata.NFAe (NFAe)
-import Regularity.Automata.NFA (NFA)
 import Regularity.Regex as R
+
+import Regularity.Regular
+
+import Regularity.Brzozowski
+
+import Regularity.Automata
 
 acceptsNFAe :: Regex -> Text -> Bool
 acceptsNFAe re t = accepts (fromRegex re :: NFAe) t
@@ -16,10 +19,13 @@ acceptsNFAe re t = accepts (fromRegex re :: NFAe) t
 acceptsNFA :: Regex -> Text -> Bool
 acceptsNFA re t = accepts (fromRegex re :: NFA) t
 
+acceptsBrzozowski :: Regex -> Text -> Bool
+acceptsBrzozowski re t = accepts (Brzozowski re) t
+
 main :: IO ()
 main = defaultMain
   [ scalingTests "regex" R.matches
-  , scalingTests "regex (Brzozowski derivative)" R.dMatches
+  , scalingTests "regex (Brzozowski derivative)" acceptsBrzozowski
   , scalingTests "NFA" acceptsNFA
   , scalingTests "NFAe" acceptsNFAe
   ]
@@ -27,7 +33,7 @@ main = defaultMain
 oldStarTests :: IO ()
 oldStarTests = defaultMain
   [ starTests "regex" R.matches
-  , starTests "regex (Brzozowski derivative)" R.dMatches
+  , starTests "regex (Brzozowski derivative)" acceptsBrzozowski
   , starTests "NFA" acceptsNFA
   , starTests "NFAe" acceptsNFAe
   ]

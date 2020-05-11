@@ -1,5 +1,6 @@
 import Regularity.Regex (Alphabet, Regex)
 import qualified Regularity.Regex as R
+import qualified Regularity.Brzozowski as B
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -29,8 +30,8 @@ nthDerivativeSizes sigma size totalDerivs = loop totalDerivs (R.regexesOfSize si
   where loop 0 _res _resS = return ()
         loop n  res  resS = do
           -- compute smart and stupid derivatives
-          let derivs  = Set.unions $ Set.map (allDerivs R.deriv  sigma) res
-          let derivsS = Set.unions $ Set.map (allDerivs R.derivS sigma) resS
+          let derivs  = Set.unions $ Set.map (allDerivs B.deriv  sigma) res
+          let derivsS = Set.unions $ Set.map (allDerivs B.derivS sigma) resS
 
           let sizes  = Set.map R.size derivs
           let sizesS = Set.map R.size derivsS
@@ -41,8 +42,8 @@ nthDerivativeSizes sigma size totalDerivs = loop totalDerivs (R.regexesOfSize si
 singleStepDerivativeSizes :: Alphabet -> Int -> IO ()
 singleStepDerivativeSizes sigma size = do
   let res = R.regexesOfSize sigma size
-  let sizes  = derivSizes R.deriv  sigma res
-  let sizesS = derivSizes R.derivS sigma res
+  let sizes  = derivSizes B.deriv  sigma res
+  let sizesS = derivSizes B.derivS sigma res
   putStrLn ("smart," ++ Set.toList sigma ++ "," ++ show size ++ "," ++ show (maximum sizes))
   putStrLn ("plain," ++ Set.toList sigma ++ "," ++ show size ++ "," ++ show (maximum sizesS))
 

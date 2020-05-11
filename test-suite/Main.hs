@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, MultiParamTypeClasses #-}
 
 -- Tasty makes it easy to test your code. It is a test framework that can
 -- combine many different types of tests into one suite. See its website for
@@ -9,8 +9,13 @@ import qualified Test.Tasty
 import Test.Tasty.Hspec
 import Test.Tasty.QuickCheck
 
-import Regularity.Regex (Regex(..), matches, dMatches, starNesting, textMatching, Alphabet, regexesOfSize)
+import Prelude hiding (seq)
+
+import Regularity.Regex (Regex(..), matches, starNesting, textMatching, Alphabet, regexesOfSize)
+import Regularity.Brzozowski (Brzozowski(..), deriv)
 import qualified Regularity.Regex as Regex
+
+import Regularity.Regular
 
 import Regularity.Automata
 import Regularity.Automata.NFAe (NFAe)
@@ -36,6 +41,7 @@ main = do
     , testProperties "regex property tests" regexPropertyTests
     , testProperties "automata property tests (NFAe)" (automataPropertyTests (accepts :: NFAe -> Text -> Bool))
     , testProperties "automata property tests (NFA)" (automataPropertyTests (accepts :: NFA -> Text -> Bool))
+    , testProperties "automata property tests (implicit Brzozowski)" (automataPropertyTests (accepts :: Brzozowski -> Text -> Bool))
     , testProperties "automata id shifting (NFAe)" (automataShiftTests NFAe.shiftBy)
     , testProperties "automata id shifting (NFA)" (automataShiftTests NFA.shiftBy)
     , testProperties "epsilon determinization"
@@ -145,22 +151,7 @@ regexPropertyTests =
     , property $ \r -> forAll (textMatching r) $ \s ->
         case T.uncons s of
           Nothing -> property Discard
-          Just (c,s') -> property (Regex.deriv c r `matches` s'))
-  , ("dMatches correct on empty string"
-    , property $ \r -> Regex.nullable r === (r `dMatches` T.empty))
-  , ("dMatches (accepting only)"
-    , property $
-      \r -> forAll (textMatching r) $ \s ->
-        property (r `dMatches` s))
-  , ("matches and dMatches agree (arbitrary strings)"
-    , property $ \r rawS ->
-        let s = T.pack rawS
-            accepting = r `matches` s in
-          
-        classify accepting "accepting" $
-        classify (T.null s) "empty string" $
-
-        accepting === (r `dMatches` s))
+          Just (c,s') -> property (deriv c r `matches` s'))
   , ("derivitive wrt fresh char is empty"
     , property $ \r ->        
         let sigma = Regex.alphabetOf r
@@ -169,10 +160,10 @@ regexPropertyTests =
           forAll arbitrary $ \c ->
             not (c `Set.member` sigma) ==>
             label ("|sigma| = " ++ show (Set.size sigma)) $
-            Regex.deriv c r === Empty)
+            deriv c r === Empty)
   ]
 
-automataShiftTests :: Automaton a => (a -> Int -> a) -> [(String, Property)]
+automataShiftTests :: (Regular a, Automaton a s) => (a -> Int -> a) -> [(String, Property)]
 automataShiftTests shiftBy =
   [ ("shifting ids doesn't change acceptance"
     , property $ \re rawS (Positive n)->
@@ -188,20 +179,20 @@ automataShiftTests shiftBy =
           (a `accepts` s) .&&. ((a `shiftBy` n) `accepts` s))
   ]
 
-automataPropertyTests :: Automaton a => (a -> Text -> Bool) -> [(String, Property)]
+automataPropertyTests :: Regular a => (a -> Text -> Bool) -> [(String, Property)]
 automataPropertyTests accepts =
   [ ("empty automaton rejects all strings"
-    , property $ \s -> not (aempty `accepts` T.pack s))
+    , property $ \s -> not (empty `accepts` T.pack s))
   , ("epsilon automaton accepts only the empty string"
     , property $ \rawS ->
         let s = T.pack rawS
             isEmpty = T.null s
         in
           classify isEmpty "empty" $
-          isEmpty === aepsilon `accepts` s)
+          isEmpty === epsilon `accepts` s)
   , ("char automaton accepts only its character"
     , property $ \c rawS ->
-        let a = achar c
+        let a = char c
             s = T.pack rawS
             
             startsWithC = case T.uncons s of
@@ -215,7 +206,7 @@ automataPropertyTests accepts =
           (startsWithC && T.length s == 1) === accepting)
   , ("char automaton accepts only its character (forcing char on front)"
     , property $ \c rawS ->
-        let a = achar c
+        let a = char c
             s = T.pack (c : rawS)
 
             accepting = a `accepts` s
@@ -224,10 +215,10 @@ automataPropertyTests accepts =
           (T.length s == 1) === accepting)
   , ("char automaton accepts strings matching exactly"
     , property $ \c ->
-        achar c `accepts` T.singleton c)
+        char c `accepts` T.singleton c)
   , ("alt automaton accepts either character"
     , property $ \c1 c2 ->
-        let a = aalt (achar c1) (achar c2) in
+        let a = alt (char c1) (char c2) in
           conjoin [ a `accepts` T.singleton c1
                   , a `accepts` T.singleton c2
                   , not (a `accepts` T.empty)
@@ -235,7 +226,7 @@ automataPropertyTests accepts =
                   ])
   , ("seq automaton accepts characters in order"
     , property $ \c1 c2 ->
-        let a = aseq (achar c1) (achar c2) in
+        let a = seq (char c1) (char c2) in
           conjoin [ a `accepts` T.pack [c1, c2]
                   , not (a `accepts` T.empty)
                   , not (a `accepts` T.pack [c1])
@@ -244,19 +235,22 @@ automataPropertyTests accepts =
                   , c1 == c2 || not (a `accepts` T.pack [c2,c2])
                   ])
   , ("star automaton accepts empty string"
-    , property $ \c -> astar (achar c) `accepts` T.empty)
+    , property $ \c -> star (char c) `accepts` T.empty)
 
   , ("star automaton accepts single char"
-    , property $ \c -> astar (achar c) `accepts` T.singleton c)
+    , property $ \c -> star (char c) `accepts` T.singleton c)
 
   , ("star automaton accepts ten characters"
     , property $ \c ->
-        astar (achar c) `accepts` T.replicate 10 (T.singleton c))
+        star (char c) `accepts` T.replicate 10 (T.singleton c))
 
   , ("star automaton doesn't accept weird suffixes"
     , property $ \c ->
-        not (astar (achar c) `accepts` T.pack [c,c,c,c,c, 'b', 'c']))
+        not (star (char c) `accepts` T.pack [c,c,c,c,c, 'b', 'c']))
 
+  , ("correct on nullable regexes/empty string"
+    , property $ \r -> Regex.nullable r === (fromRegex r `accepts` T.empty))
+  
   , ("regexes and automata agree"
     , property $ \re rawS ->
         let s = T.pack rawS

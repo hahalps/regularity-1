@@ -4,10 +4,12 @@
 module Regularity
   ( main
   , module Regularity.Regex
+  , module Regularity.Automata
   )
 where
 
 import Regularity.Regex
+import Regularity.Automata
 
 -- | Default entry point.
 main :: IO ()

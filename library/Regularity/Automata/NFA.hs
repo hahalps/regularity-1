@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, BangPatterns #-}
+{-# LANGUAGE OverloadedStrings, BangPatterns, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Regularity.Automata.NFA
   ( NFA()
   , shiftBy
@@ -22,9 +22,8 @@ import qualified Data.Set as Set
 
 import Data.List (intercalate, elemIndex)
 
-import qualified Data.Text as T
-
-import Regularity.Automata hiding (StateId, shiftStateIdBy)
+import Regularity.Regular
+import Regularity.Automata.Automaton
 
 import Regularity.Automata.NFAe (NFAe)
 import qualified Regularity.Automata.NFAe as NFAe
@@ -41,19 +40,39 @@ type StateSet = IntSet
 data NFA =
   NFA { states :: !StateSet
       , delta :: !(StateMap (Map Char StateSet))
-      , accepting :: !StateSet
+      , acceptingStates :: !StateSet
       , startState :: !StateId
       }
 
-instance Automaton NFA where
-  accepts = Regularity.Automata.NFA.accepts
+instance Regular NFA where
+  empty   = Regularity.Automata.NFA.empty
+  epsilon = Regularity.Automata.NFA.epsilon
+  char    = Regularity.Automata.NFA.char
+  seq     = Regularity.Automata.NFA.seq
+  alt     = Regularity.Automata.NFA.alt
+  star    = Regularity.Automata.NFA.star
 
-  aempty = empty
-  aepsilon = epsilon
-  achar = char
-  aseq = seq
-  aalt = alt
-  astar = star
+instance Automaton NFA StateSet where
+  initialState a =
+    IntSet.singleton $ startState a
+
+  step a currentStates c =
+    let nextStatesFor si =
+          Map.findWithDefault IntSet.empty
+            c (a `transitionsFor` si)
+    in
+      IntSet.foldr
+        (\si next ->
+           IntSet.union (nextStatesFor si) next)
+        IntSet.empty
+        currentStates
+
+  accepting a ss =
+    IntSet.foldr
+      (\si found ->
+         found || (si `IntSet.member` acceptingStates a))
+      False
+      ss
 
 transitionsFor :: NFA -> StateId -> Map Char StateSet
 transitionsFor a si = IntMap.findWithDefault Map.empty si (delta a)
@@ -62,7 +81,7 @@ instance Show NFA where
   show a =
     unlines $ [ "STATES: " ++ intercalate ", " (map show $ IntSet.toAscList $ states a)
               , "START STATE: " ++ (show $ startState a)
-              , "ACCEPTING: " ++ intercalate ", " (map show $ IntSet.toAscList $ accepting a)
+              , "ACCEPTING: " ++ intercalate ", " (map show $ IntSet.toAscList $ acceptingStates a)
               , "TRANSITIONS:"
               ] ++
     IntMap.foldrWithKey
@@ -93,25 +112,11 @@ shiftBy a n =
                 IntMap.empty
                 (delta a)
       , startState = startState a `shiftStateIdBy` n
-      , accepting = IntSet.map (`shiftStateIdBy` n) (accepting a)
+      , acceptingStates = IntSet.map (`shiftStateIdBy` n) (acceptingStates a)
       }
 
 maxStateId :: NFA -> Int
 maxStateId a = IntSet.findMax $ states a
-
-accepts :: NFA -> T.Text -> Bool
-accepts !a !s = IntSet.foldr (\si found -> found || (si `IntSet.member` accepting a)) False $ run a s
-
-run :: NFA -> T.Text -> StateSet
-run !a s = T.foldl (step a) (IntSet.singleton $ startState a) s
-
-step :: NFA -> StateSet -> Char -> StateSet
-step a currentStates c =
-  let nextStatesFor si =
-        Map.findWithDefault IntSet.empty c (a `transitionsFor` si)
-  in
-    IntSet.foldr (\si next -> IntSet.union (nextStatesFor si) next)
-        IntSet.empty currentStates
 
 empty :: NFA
 empty =
@@ -120,7 +125,7 @@ empty =
   NFA { states = IntSet.singleton id0
       , delta = IntMap.singleton id0 Map.empty
       , startState = id0
-      , accepting = IntSet.empty
+      , acceptingStates = IntSet.empty
       }
 
 epsilon :: NFA
@@ -130,7 +135,7 @@ epsilon =
     NFA { states = IntSet.singleton id0
         , delta = IntMap.singleton id0 Map.empty
         , startState = id0
-        , accepting = IntSet.singleton id0
+        , acceptingStates = IntSet.singleton id0
         }
 
 char :: Char -> NFA
@@ -141,12 +146,12 @@ char c =
     NFA { states = IntSet.fromList [id0, id1]
         , delta = IntMap.singleton id0 (Map.singleton c (IntSet.singleton id1))
         , startState = id0
-        , accepting = IntSet.singleton id1
+        , acceptingStates = IntSet.singleton id1
         }
 
 seq :: NFA -> NFA -> NFA
 seq !a1 !a2 =
-  -- CORE IDEA: accepting states in a1 simulate a2's start state
+  -- CORE IDEA: acceptingStates states in a1 simulate a2's start state
   let a2' = a2 `shiftBy` (maxStateId a1 + 1)
       a2Inits = a2' `transitionsFor` startState a2'      
       delta1' = IntSet.foldr
@@ -154,20 +159,20 @@ seq !a1 !a2 =
                      IntMap.insertWith (Map.unionWith IntSet.union)
                        si a2Inits delta')
                   (delta a1)
-                  (accepting a1)
+                  (acceptingStates a1)
   in
     NFA { states = states a1 `IntSet.union` states a2'
         , delta = delta1' `IntMap.union` delta a2'
         , startState = startState a1
-        , accepting =
+        , acceptingStates =
             {- make sure that a1's accepting states
                are accepting if a2's startState is accepting
              -}
-            (if startState a2' `IntSet.member` accepting a2'
-                 then accepting a1
+            (if startState a2' `IntSet.member` acceptingStates a2'
+                 then acceptingStates a1
                  else IntSet.empty)
                 `IntSet.union`
-                accepting a2'
+                acceptingStates a2'
               }
 
 alt :: NFA -> NFA -> NFA
@@ -182,13 +187,13 @@ alt !a1 !a2 =
     NFA { states = IntSet.insert id0 (states a1' `IntSet.union` states a2')
         , delta = IntMap.insert id0 init (delta a1' `IntMap.union` delta a2')
         , startState = id0
-        , accepting =
+        , acceptingStates =
             IntSet.unions
-            [ if startState a1' `IntSet.member` accepting a1' || startState a2' `IntSet.member` accepting a2'
+            [ if startState a1' `IntSet.member` acceptingStates a1' || startState a2' `IntSet.member` acceptingStates a2'
               then IntSet.singleton id0
               else IntSet.empty
-            , accepting a1'
-            , accepting a2'
+            , acceptingStates a1'
+            , acceptingStates a2'
             ]
         }
 
@@ -201,12 +206,12 @@ star !a =
                   IntMap.insertWith (Map.unionWith IntSet.union)
                     si init delta'')
                (delta a)
-               (accepting a)
+               (acceptingStates a)
   in
     NFA { states = states a
         , delta = delta'
         , startState = startState a
-        , accepting = IntSet.insert (startState a) (accepting a)
+        , acceptingStates = IntSet.insert (startState a) (acceptingStates a)
         }
 
 -- TODO fromNFAe
@@ -282,9 +287,9 @@ fromNFAe ae =
                          delta')
                     IntMap.empty
                     lDelta
-        , accepting = Set.foldr
+        , acceptingStates = Set.foldr
                         (\ls acc ->
-                           if IntSet.foldr (\sid found -> found || sid `IntSet.member` NFAe.accepting ae) False ls
+                           if IntSet.foldr (\sid found -> found || sid `IntSet.member` NFAe.acceptingStates ae) False ls
                            then IntSet.insert (stateIdFor ls) acc
                            else acc)
                         IntSet.empty

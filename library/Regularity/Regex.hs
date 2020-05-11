@@ -7,9 +7,6 @@ module Regularity.Regex
   , Parser
   , matches
   , allMatches
-  , dMatches
-  , deriv
-  , derivS
   , nullable
   , size
   , alphabetOf
@@ -81,11 +78,11 @@ star re        = Star re
 
 -- | Regex matching
 
-matches :: Regex -> T.Text -> Bool
+matches :: Regex -> Text -> Bool
 matches !re !s = T.empty `elem` allMatches re s
 
 -- | Returns the set of strings that could be remaining after a match.
-allMatches :: Regex -> T.Text -> Set T.Text
+allMatches :: Regex -> Text -> Set Text
 allMatches Empty _ = Set.empty
 allMatches Epsilon s = Set.singleton s
 allMatches (Char c) s =
@@ -134,39 +131,6 @@ starNesting (Seq re1 re2) = max (starNesting re1) (starNesting re2)
 starNesting (Alt re1 re2) = max (starNesting re1) (starNesting re2)
 starNesting (Star re)     = 1 + starNesting re
 
--- | Brzozowski derivatives
-
-{- idea: Brzozowski automata
-
-  A(E)
-
-  Q \subseteq Regex   IMPLICIT STATES
-  s0 = E
-  delta(s, c) = deriv_c(s)
-  accepting(s) = nullable s
-
--}
-
-dMatches :: Regex -> Text -> Bool
-dMatches re t = nullable (T.foldl (flip deriv) re t)
-
--- re `matches` c:s iff deriv c re `matches` s
-deriv :: Char -> Regex -> Regex
-deriv _c Empty         = empty
-deriv _c Epsilon       = empty
-deriv  c (Char c')     = if c == c' then epsilon else empty
-deriv  c (Seq re1 re2) = alt (seq (deriv c re1) re2) (if nullable re1 then deriv c re2 else empty)
-deriv  c (Alt re1 re2) = alt (deriv c re1) (deriv c re2)
-deriv  c (Star re)     = seq (deriv c re) (star re)
-
-derivS :: Char -> Regex -> Regex
-derivS _c Empty         = Empty
-derivS _c Epsilon       = Empty
-derivS  c (Char c')     = if c == c' then Epsilon else Empty
-derivS  c (Seq re1 re2) = Alt (Seq (derivS c re1) re2) (if nullable re1 then derivS c re2 else Empty)
-derivS  c (Alt re1 re2) = Alt (derivS c re1) (derivS c re2)
-derivS  c (Star re)     = Seq (derivS c re) (Star re)
-
 -- `nullable re` returns true iff re accepts the empty string
 nullable :: Regex -> Bool
 nullable Empty         = False
@@ -200,7 +164,7 @@ instance Show Regex where
 
 -- | Parsing
 
-type Parser = Parsec Void T.Text
+type Parser = Parsec Void Text
 
 specialChars :: String
 specialChars = "()|*𝜖∅\\"
@@ -298,7 +262,7 @@ regexesOfSize  sigma n =
                , Set.map Star $ regexesOfSize sigma (n-1)
                ]
 
-textMatching :: Regex -> Gen T.Text
+textMatching :: Regex -> Gen Text
 textMatching re = T.pack <$> stringMatching re
 
 stringMatching :: Regex -> Gen String
