@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.com/Pomona-College-CS181-SP2020/regularity.svg?branch=master)](https://travis-ci.com/Pomona-College-CS181-SP2020/regularity)
 
-A library for working with regular languages and finite automata.
+a library for working with regular languages and finite automata.
 
 Development is streamed at https://www.twitch.tv/prof_greenberg.
 
